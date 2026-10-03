@@ -1,5 +1,10 @@
+async def verificar_estado_cuenta(token: str, account_id: str):
+  pass  # Función reservada para la siguiente fase
+
+
 import asyncio
 from cryptography.fernet import Fernet
+import sqlite3
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
@@ -29,6 +34,53 @@ def descifrar_dato(texto_cifrado: str) -> str:
 
 
 # ==========================================
+# CONFIGURACIÓN DE LA BASE DE DATOS SQLITE
+# ==========================================
+def inicializar_db():
+  """Crea la tabla de socios si no existe."""
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute("""
+        CREATE TABLE IF NOT EXISTS socios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            account_id_cifrado TEXT NOT NULL,
+            token_cifrado TEXT NOT NULL
+        )
+    """)
+  conn.commit()
+  conn.close()
+
+
+def guardar_socio_db(nombre: str, account_id_cifrado: str, token_cifrado: str):
+  """Inserta o actualiza un socio en la base de datos."""
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute(
+      """
+        INSERT INTO socios (nombre, account_id_cifrado, token_cifrado)
+        VALUES (?, ?, ?)
+    """,
+      (nombre, account_id_cifrado, token_cifrado),
+  )
+  conn.commit()
+  conn.close()
+
+
+def obtener_socios_db():
+  """Recupera la lista de socios registrados."""
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute("SELECT id, nombre, account_id_cifrado FROM socios")
+  filas = cursor.fetchall()
+  conn.close()
+  return filas
+
+
+# Inicializar la base de datos al arrancar
+inicializar_db()
+
+# ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
 st.set_page_config(
@@ -37,10 +89,9 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📈 Radar Liquidity Gold Bot - Panel de Socios (MetaApi Cloud)")
+st.title("📈 Radar Liquidity Gold Bot - Panel de Socios (Base de Datos)")
 st.write(
-    "Plataforma cloud segura para la gestión y conexión de cuentas de trading"
-    " mediante MetaApi."
+    "Plataforma cloud segura con almacenamiento cifrado para cuentas MetaApi."
 )
 
 # ==========================================
@@ -51,70 +102,49 @@ socio_nombre = st.sidebar.text_input("Nombre de Socio")
 metaapi_token = st.sidebar.text_input("Token de MetaApi", type="password")
 metaapi_account_id = st.sidebar.text_input("MetaApi Account ID")
 
-if st.sidebar.button("Guardar y Cifrar Credenciales"):
+if st.sidebar.button("Guardar y Cifrar en BD"):
   if socio_nombre and metaapi_token and metaapi_account_id:
     token_seguro = cifrar_dato(metaapi_token)
     account_seguro = cifrar_dato(metaapi_account_id)
-    # Aquí posteriormente almacenaremos 'token_seguro' y 'account_seguro' en tu Base de Datos
+
+    # Guardar en SQLite de forma segura
+    guardar_socio_db(socio_nombre, account_seguro, token_seguro)
+
     st.sidebar.success(
-        f"¡Credenciales de MetaApi para {socio_nombre} guardadas y cifradas con"
-        " éxito! 🔒"
+        f"¡Credenciales de MetaApi para {socio_nombre} guardadas y cifradas en la"
+        " BD! 🔒"
     )
   else:
     st.sidebar.warning(
         "Por favor completa todos los campos de MetaApi para continuar."
     )
 
-
-# ==========================================
-# FUNCIÓN DE CONEXIÓN CON METAAPI
-# ==========================================
-async def verificar_estado_cuenta(token: str, account_id: str):
-  """Consulta el estado de la cuenta MT5 en MetaApi Cloud de forma asíncrona."""
-  try:
-    metaapi = MetaApi(token)
-    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
-
-    # Conectar si no está conectada
-    if account.state != "DEPLOYED":
-      await account.deploy()
-
-    if account.connection_status != "CONNECTED":
-      await account.wait_connected()
-
-    # Obtener información de la cuenta (balance, equidad, etc.)
-    connection = account.get_rpc_connection()
-    await connection.connect()
-    await connection.wait_synchronized()
-
-    account_info = await connection.get_account_information()
-    await connection.close()
-    return True, account_info
-  except Exception as e:
-    return False, str(e)
-
-
 # ==========================================
 # PANEL PRINCIPAL
 # ==========================================
-st.subheader("📊 Monitoreo y Estado de la Cuenta MT5")
+st.subheader("📊 Socios y Cuentas Registradas (Cloud)")
 st.info(
-    "Utiliza el menú lateral para ingresar tus credenciales de MetaApi. El"
-    " sistema validará la conexión con los servidores de tu bróker 24/7."
+    "Las credenciales se almacenan cifradas en la base de datos interna para"
+    " proteger el acceso a las cuentas MT5."
 )
+
+# Mostrar la lista de socios registrados
+socios = obtener_socios_db()
+if socios:
+  st.write(f"Total de socios registrados: **{len(socios)}**")
+  for socio in socios:
+    st.markdown(
+        f"- **ID:** {socio[0]} | **Socio:** {socio[1]} | **Account ID (Cifrado):**"
+        f" `{socio[2][:20]}...`"
+    )
+else:
+  st.warning("No hay cuentas registradas todavía. Usa el panel lateral.")
 
 # Simulación de métricas de mercado
 col1, col2, col3 = st.columns(3)
 with col1:
   st.metric(label="Oro (XAU/USD)", value="$2,680.50", delta="+12.40")
 with col2:
-  st.metric(label="Infraestructura Cloud", value="Activa 🟢", delta="MetaApi")
+  st.metric(label="Base de Datos", value="SQLite Activa 🟢", delta="Segura")
 with col3:
   st.metric(label="Seguridad Fernet", value="Protegido 🔒", delta="Activa")
-
-# Botón de prueba de conexión rápida en el panel principal
-if st.button("Probar Conexión con MetaApi (Usando datos de prueba)"):
-  st.warning(
-      "Para realizar pruebas reales, ingresa tus credenciales en el panel"
-      " lateral y asegúrate de tener tu token activo de MetaApi."
-  )
