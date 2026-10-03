@@ -5,7 +5,7 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS MT5 (ESTILO FLOTANTE / NEUMORFISMO)
+# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS MT5 (COMPACTO Y A LA DERECHA)
 # ==========================================
 st.set_page_config(
     page_title="Radar Liquidity Gold Bot",
@@ -15,49 +15,49 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Contenedor principal de la tarjeta flotante inspirado en la referencia */
+    /* Contenedor principal de la tarjeta flotante reducida y alineada a la derecha */
     .mt5-floating-card {
         background: linear-gradient(135deg, #1e222d 0%, #161a23 100%);
         border: 1px solid #2a2e39;
-        border-radius: 20px;
-        padding: 30px;
+        border-radius: 16px;
+        padding: 20px;
         position: relative;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         margin-top: 10px;
         margin-bottom: 20px;
     }
     
-    /* Insignia circular superior derecha (estilo distintivo) */
+    /* Insignia circular superior derecha */
     .mt5-badge-floating {
         position: absolute;
-        top: 25px;
-        right: 25px;
+        top: 18px;
+        right: 18px;
         background: linear-gradient(135deg, #008eff 0%, #0044cc 100%);
-        width: 45px;
-        height: 45px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: bold;
-        font-size: 0.85rem;
-        box-shadow: 0 4px 15px rgba(0, 142, 255, 0.4);
+        font-size: 0.75rem;
+        box-shadow: 0 4px 12px rgba(0, 142, 255, 0.4);
         letter-spacing: 0.5px;
     }
 
     .mt5-floating-card h3 {
         color: #ffffff;
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 1.35rem;
+        font-size: 1.15rem;
         font-weight: 700;
-        margin-bottom: 5px;
+        margin-bottom: 3px;
     }
 
     .mt5-floating-card p {
         color: #848e9c;
-        font-size: 0.85rem;
-        margin-bottom: 25px;
+        font-size: 0.8rem;
+        margin-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -571,30 +571,30 @@ else:
 
     st.markdown("---")
 
-    # 2. Configuración de MT5 con la tarjeta flotante estilizada en la PARTE INFERIOR
+    # 2. Configuración de MT5 reducida y alineada hacia el MARGEN DERECHO
     if not cuenta_socio:
       st.warning(
           "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Despliega la"
-          " tarjeta de abajo para sincronizar tus métricas cuando gustes."
+          " tarjeta de la derecha para sincronizar tus métricas cuando gustes."
       )
     else:
       st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
 
-    # Columnas para centrar y hacer la tarjeta compacta (no invasiva)
-    col_c1, col_card, col_c3 = st.columns([1, 2, 1])
+    # Uso de columnas para empujar la tarjeta compacta (ancho 1 de 3) hacia la derecha (columna vacía a la izquierda)
+    col_vacia, col_card_derecha = st.columns([2, 1])
 
-    with col_card:
+    with col_card_derecha:
       with st.expander(
-          "⚙️ Configuración de Cuenta MT5 (Opcional)",
+          "⚙️ Configurar MT5",
           expanded=not bool(cuenta_socio),
       ):
-        # Renderizado de la tarjeta flotante con la insignia MT5
+        # Renderizado de la tarjeta flotante compacta con la insignia MT5
         st.markdown(
             """
                 <div class="mt5-floating-card">
                     <div class="mt5-badge-floating">MT5</div>
                     <h3>Conectar Cuenta</h3>
-                    <p>Sincroniza tus datos con MetaApi de forma segura.</p>
+                    <p>Sincroniza tus datos de forma segura.</p>
                 </div>
                 """,
             unsafe_allow_html=True,
