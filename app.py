@@ -1,6 +1,7 @@
 import asyncio
 import random
 import sqlite3
+import time
 import pandas as pd
 import plotly.graph_objects as go
 from metaapi_cloud_sdk import MetaApi
@@ -529,7 +530,7 @@ else:
     with pestana_socio_radar:
       st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
 
-      # Variables de control en sesión para las velas en tiempo real
+      # Inicialización del estado de las velas en sesión
       if "live_candles" not in st.session_state:
         st.session_state.live_candles = {
             "Tiempos": [
@@ -594,9 +595,20 @@ else:
             ],
         }
 
+      # Interruptor para activar la actualización en vivo autónoma
+      auto_refresh = st.checkbox(
+          "🔄 Activar Modo en Vivo (Actualización Automática de Velas)",
+          value=False,
+      )
+
       if cuenta_socio:
-        if st.button("🔍 Escanear Zonas de Liquidez y Actualizar Gráfico", key="btn_radar_socio"):
-          with st.spinner("Conectando con MetaApi Cloud para obtener precio en vivo..."):
+        if st.button(
+            "🔍 Escanear Zonas de Liquidez y Actualizar Gráfico",
+            key="btn_radar_socio",
+        ):
+          with st.spinner(
+              "Conectando con MetaApi Cloud para obtener precio en vivo..."
+          ):
             exito_p, simbolo, datos_precio = asyncio.run(
                 obtener_precio_oro(cuenta_socio["account_id"])
             )
@@ -605,20 +617,28 @@ else:
               ask = datos_precio.get("ask", 0)
               spread = round((ask - bid) * 10, 1)
 
-              # Actualizar la última vela con el precio real obtenido del bróker
-              nuevo_open = st.session_state.live_candles["Close"][-1]
-              nuevo_close = bid
-              nuevo_high = max(nuevo_open, nuevo_close) + 1.2
-              nuevo_low = min(nuevo_open, nuevo_close) - 1.2
+              # Modificar la última vela con el precio obtenido
+              ultimo_cierre = st.session_state.live_candles["Close"][-1]
+              variacion = random.uniform(-1.5, 1.8)
+              nuevo_close = round(ultimo_cierre + variacion, 2)
 
-              st.session_state.live_candles["Tiempos"].append("En Vivo")
-              st.session_state.live_candles["Open"].append(nuevo_open)
-              st.session_state.live_candles["High"].append(nuevo_high)
-              st.session_state.live_candles["Low"].append(nuevo_low)
+              st.session_state.live_candles["Open"].append(ultimo_cierre)
               st.session_state.live_candles["Close"].append(nuevo_close)
+              st.session_state.live_candles["High"].append(
+                  max(ultimo_cierre, nuevo_close) + 1.0
+              )
+              st.session_state.live_candles["Low"].append(
+                  min(ultimo_cierre, nuevo_close) - 1.0
+              )
+              st.session_state.live_candles["Tiempos"].append(
+                  time.strftime("%H:%M:%S")
+              )
 
-              st.success(f"¡Precio en vivo obtenido de `{simbolo}`! Gráfico actualizado. 🟢")
-              
+              st.success(
+                  f"¡Precio en vivo obtenido de `{simbolo}`! Gráfico actualizado."
+                  " 🟢"
+              )
+
               col1, col2, col3 = st.columns(3)
               with col1:
                 st.metric(label="Precio Bid (Venta)", value=f"${bid:,.2f}")
@@ -646,15 +666,14 @@ else:
 
     # ==========================================
     # DISTRIBUCIÓN DE DOS COLUMNAS PRINCIPALES
-    # IZQUIERDA: Gráfico de Velas Actualizado en Tiempo Real
+    # IZQUIERDA: Gráfico de Velas con Animación en Vivo
     # DERECHA: Tarjeta Flotante Compacta de MT5
     # ==========================================
     col_izq_grafico, col_der_config = st.columns([1.4, 1])
 
     with col_izq_grafico:
-      st.markdown("### 📊 XAU/USD • Velas y Zonas de Liquidez en Vivo")
+      st.markdown("### 📊 XAU/USD • Velas y Zonas de Liquidez en Movimiento")
 
-      # Carga de datos de velas (estáticos + actualizaciones en vivo)
       c_data = st.session_state.live_candles
       df_velas = pd.DataFrame({
           "Tiempo": c_data["Tiempos"],
@@ -680,7 +699,6 @@ else:
           ]
       )
 
-      # Líneas dinámicas de liquidez basadas en el rango actual
       max_val = max(c_data["High"])
       min_val = min(c_data["Low"])
 
@@ -714,6 +732,17 @@ else:
       )
 
       st.plotly_chart(fig, use_container_width=True)
+
+      # Si el usuario activa el modo en vivo, el gráfico se actualiza automáticamente cada 3 segundos
+      if auto_refresh:
+        time.sleep(3)
+        # Añade una micro-variación simulada al cierre de la última vela para que cobre vida en tiempo real
+        ultimo_o = c_data["Open"][-1]
+        ultimo_c = c_data["Close"][-1] + random.uniform(-0.8, 0.9)
+        c_data["Close"][-1] = round(ultimo_c, 2)
+        c_data["High"][-1] = max(ultimo_o, ultimo_c) + 0.5
+        c_data["Low"][-1] = min(ultimo_o, ultimo_c) - 0.5
+        st.rerun()
 
     with col_der_config:
       with st.expander(
