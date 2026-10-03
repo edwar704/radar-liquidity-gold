@@ -487,4 +487,4 @@ else:
   with c2:
     st.metric(label="Infraestructura Cloud", value="Activa 🟢", delta="MetaApi")
   with c3:
-    st.metric(label="Motor de Alertas", value="Operativo ⚡", delta="En línea")v
+    st.metric(label="Motor de Alertas", value="Operativo ⚡", delta="En línea")
