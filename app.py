@@ -61,6 +61,34 @@ st.markdown("""
         font-size: 0.8rem;
         margin-bottom: 15px;
     }
+
+    /* Tarjeta de aviso azul MT5 elegante y no agresiva */
+    .mt5-notice-card {
+        background: linear-gradient(135deg, rgba(0, 142, 255, 0.12) 0%, rgba(22, 26, 35, 0.8) 100%);
+        border: 1px solid rgba(0, 142, 255, 0.3);
+        border-radius: 12px;
+        padding: 15px 20px;
+        color: #d1d4dc;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .mt5-notice-icon {
+        background: #008eff;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -595,7 +623,6 @@ else:
             ],
         }
 
-      # Interruptor para activar la actualización en vivo autónoma
       auto_refresh = st.checkbox(
           "🔄 Activar Modo en Vivo (Actualización Automática de Velas)",
           value=False,
@@ -617,7 +644,6 @@ else:
               ask = datos_precio.get("ask", 0)
               spread = round((ask - bid) * 10, 1)
 
-              # Modificar la última vela con el precio obtenido
               ultimo_cierre = st.session_state.live_candles["Close"][-1]
               variacion = random.uniform(-1.5, 1.8)
               nuevo_close = round(ultimo_cierre + variacion, 2)
@@ -657,9 +683,15 @@ else:
     st.markdown("---")
 
     if not cuenta_socio:
-      st.warning(
-          "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Configura tus"
-          " credenciales en el panel de la derecha para sincronizar tus métricas."
+      # Aviso elegante en azul institucional MT5
+      st.markdown(
+          """
+            <div class="mt5-notice-card">
+                <div class="mt5-notice-icon">i</div>
+                <div><b>Sincronización Pendiente:</b> Aún no tienes una cuenta MT5 vinculada. Configura tus credenciales en el panel de la derecha para habilitar el monitoreo de métricas en vivo.</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
       )
     else:
       st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
@@ -733,10 +765,8 @@ else:
 
       st.plotly_chart(fig, use_container_width=True)
 
-      # Si el usuario activa el modo en vivo, el gráfico se actualiza automáticamente cada 3 segundos
       if auto_refresh:
         time.sleep(3)
-        # Añade una micro-variación simulada al cierre de la última vela para que cobre vida en tiempo real
         ultimo_o = c_data["Open"][-1]
         ultimo_c = c_data["Close"][-1] + random.uniform(-0.8, 0.9)
         c_data["Close"][-1] = round(ultimo_c, 2)
