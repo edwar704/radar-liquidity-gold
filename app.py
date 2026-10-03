@@ -1,6 +1,5 @@
 import asyncio
 from cryptography.fernet import Fernet
-import sqlite3
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
@@ -16,44 +15,15 @@ st.set_page_config(
 # ==========================================
 # 2. CONFIGURACIÓN DE SEGURIDAD Y CREDENCIALES
 # ==========================================
-if "FERNET_KEY" in st.secrets and "METAAPI_TOKEN" in st.secrets:
-  FERNET_KEY = st.secrets["FERNET_KEY"].encode()
+if "METAAPI_TOKEN" in st.secrets:
   MASTER_METAAPI_TOKEN = st.secrets["METAAPI_TOKEN"]
-  cipher_suite = Fernet(FERNET_KEY)
 else:
-  st.error(
-      "⚠ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
-      " Streamlit."
-  )
-  cipher_suite = None
+  st.error("⚠ Falta configurar METAAPI_TOKEN en los Secrets de Streamlit.")
   MASTER_METAAPI_TOKEN = ""
 
 # ==========================================
-# 3. FUNCIONES ASÍNCRONAS DE METAAPI Y DB
+# 3. FUNCIONES ASÍNCRONAS DE METAAPI
 # ==========================================
-
-
-def inicializar_db():
-  """Resetea la tabla local para evitar conflictos de columnas antiguas."""
-  try:
-    conn = sqlite3.connect("trading_bot.db")
-    cursor = conn.cursor()
-    cursor.execute("DROP TABLE IF EXISTS socios")
-    cursor.execute("""
-            CREATE TABLE socios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                account_id TEXT NOT NULL
-            )
-        """)
-    conn.commit()
-    conn.close()
-  except Exception as e:
-    st.error(f"Error al inicializar la base de datos: {e}")
-
-
-# Inicializar la base de datos al arrancar
-inicializar_db()
 
 
 async def obtener_cuentas_metaapi():
@@ -115,7 +85,6 @@ socio_nombre = st.sidebar.text_input("Nombre de Socio")
 mt5_login = st.sidebar.text_input("Número de Cuenta (Login)")
 mt5_password = st.sidebar.text_input("Contraseña de Trading", type="password")
 
-# Desplegable con servidores
 opciones_brokers = [
     "Selecciona o escribe...",
     "MetaQuotes-Demo",
@@ -176,18 +145,20 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
         )
         st.rerun()
       else:
-        st.sidebar.error(
-            f"Error al conectar con el bróker. Verifica tus datos. Detalle:"
-            f" {resultado}"
-        )
+        st.sidebar.error(f"Error al conectar con el bróker: {resultado}")
   else:
-    st.sidebar.warning("Por favor completa todos los campos para continuar.")
+    st.sidebar.warning("Por favor completa todos los campos.")
 
-# Panel Principal: Monitoreo Directo de la Nube
+# Panel Principal: Monitoreo Directo y Diagnóstico
 st.subheader("📊 Monitoreo de Cuentas Conectadas")
 
 with st.spinner("Sincronizando cuentas desde MetaApi Cloud..."):
   exito_cuentas, lista_cuentas = asyncio.run(obtener_cuentas_metaapi())
+
+# Diagnóstico en pantalla para ver qué devuelve MetaApi
+with st.expander("🔍 Ver Diagnóstico de Conexión Cloud"):
+  st.write(f"Estado de conexión API: {exito_cuentas}")
+  st.write(f"Cuentas encontradas en bruto: {lista_cuentas}")
 
 if exito_cuentas and lista_cuentas:
   nombres_cuentas = {
@@ -228,8 +199,8 @@ if exito_cuentas and lista_cuentas:
           )
 else:
   st.warning(
-      "No hay cuentas conectadas todavía en MetaApi. Utiliza el panel lateral"
-      " para registrar una cuenta."
+      "No hay cuentas detectadas o la API devolvió una lista vacía. Revisa el"
+      " desplegable de diagnóstico arriba."
   )
 
 # Métricas generales de mercado
