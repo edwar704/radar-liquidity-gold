@@ -5,7 +5,16 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# CONFIGURACIÓN DE SEGURIDAD Y CREDENCIALES
+# 1. CONFIGURACIÓN DE LA PÁGINA (PRIMER COMANDO)
+# ==========================================
+st.set_page_config(
+    page_title="Radar Liquidity Gold Bot",
+    page_icon="📈",
+    layout="wide",
+)
+
+# ==========================================
+# 2. CONFIGURACIÓN DE SEGURIDAD Y CREDENCIALES
 # ==========================================
 if "FERNET_KEY" in st.secrets and "METAAPI_TOKEN" in st.secrets:
   FERNET_KEY = st.secrets["FERNET_KEY"].encode()
@@ -13,43 +22,35 @@ if "FERNET_KEY" in st.secrets and "METAAPI_TOKEN" in st.secrets:
   cipher_suite = Fernet(FERNET_KEY)
 else:
   st.error(
-      "⚠️ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
+      "⚠️️ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
       " Streamlit."
   )
   cipher_suite = None
   MASTER_METAAPI_TOKEN = ""
 
-
-def cifrar_dato(texto_plano: str) -> str:
-  """Cifra un dato antes de guardarlo."""
-  if cipher_suite:
-    return cipher_suite.encrypt(texto_plano.encode()).decode()
-  return ""
-
-
-def descifrar_dato(texto_cifrado: str) -> str:
-  """Descifra un dato cuando el sistema necesite usarlo."""
-  if cipher_suite:
-    return cipher_suite.decrypt(texto_cifrado.encode()).decode()
-  return ""
-
-
 # ==========================================
-# CONFIGURACIÓN DE LA BASE DE DATOS SQLITE
+# 3. GESTIÓN DE LA BASE DE DATOS SQLITE
 # ==========================================
+
+
 def inicializar_db():
-  """Crea la tabla de socios si no existe."""
-  conn = sqlite3.connect("trading_bot.db")
-  cursor = conn.cursor()
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS socios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            account_id TEXT NOT NULL
-        )
-    """)
-  conn.commit()
-  conn.close()
+  """Crea o resetea la tabla de socios para evitar conflictos."""
+  try:
+    conn = sqlite3.connect("trading_bot.db")
+    cursor = conn.cursor()
+    # Recreamos la tabla limpia para corregir cualquier esquema viejo
+    cursor.execute("DROP TABLE IF EXISTS socios")
+    cursor.execute("""
+            CREATE TABLE socios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                account_id TEXT NOT NULL
+            )
+        """)
+    conn.commit()
+    conn.close()
+  except Exception as e:
+    st.error(f"Error al inicializar la base de datos: {e}")
 
 
 def guardar_socio_db(nombre: str, account_id: str):
@@ -77,18 +78,40 @@ def obtener_socios_db():
   return filas
 
 
-# Inicializar la base de datos al arrancar
+# Inicializar la base de datos inmediatamente al arrancar
 inicializar_db()
 
 # ==========================================
-# CONFIGURACIÓN DE LA PÁGINA
+# 4. FUNCIONES ASÍNCRONAS DE METAAPI
 # ==========================================
-st.set_page_config(
-    page_title="Radar Liquidity Gold Bot",
-    page_icon="📈",
-    layout="wide",
-)
 
+
+async def verificar_estado_cuenta(account_id: str):
+  """Consulta el estado de la cuenta en MetaApi Cloud."""
+  try:
+    metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
+
+    if account.state != "DEPLOYED":
+      await account.deploy()
+
+    if account.connection_status != "CONNECTED":
+      await account.wait_connected()
+
+    connection = account.get_rpc_connection()
+    await connection.connect()
+    await connection.wait_synchronized()
+
+    account_info = await connection.get_account_information()
+    await connection.close()
+    return True, account_info
+  except Exception as e:
+    return False, str(e)
+
+
+# ==========================================
+# 5. INTERFAZ DE USUARIO (UI)
+# ==========================================
 st.title(
     "📈 Radar Liquidity Gold Bot - Onboarding Automático de Cuentas MT5"
 )
@@ -97,9 +120,7 @@ st.write(
     " MetaApi."
 )
 
-# ==========================================
-# SECCIÓN: REGISTRO AUTOMÁTICO (PANEL LATERAL)
-# ==========================================
+# Panel Lateral: Registro Automático
 st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
 socio_nombre = st.sidebar.text_input("Nombre de Socio")
 mt5_login = st.sidebar.text_input("Número de Cuenta (Login)")
@@ -125,7 +146,6 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
           metaapi = MetaApi(MASTER_METAAPI_TOKEN)
           account_api = metaapi.metapiv1.get_account_api()
 
-          # Crear la cuenta en MetaApi de forma programática
           account = await account_api.create_account({
               "name": f"Bot - {socio_nombre}",
               "type": "cloud",
@@ -147,6 +167,7 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
         st.sidebar.success(
             f"¡Cuenta para {socio_nombre} conectada y registrada con éxito! 🟢"
         )
+        st.rerun()
       else:
         st.sidebar.error(
             f"Error al conectar con el bróker. Verifica tus datos. Detalle:"
@@ -155,36 +176,7 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
   else:
     st.sidebar.warning("Por favor completa todos los campos para continuar.")
 
-
-# ==========================================
-# FUNCIÓN ASÍNCRONA DE CONSULTA EN VIVO
-# ==========================================
-async def verificar_estado_cuenta(account_id: str):
-  """Consulta el estado de la cuenta en MetaApi Cloud."""
-  try:
-    metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
-
-    if account.state != "DEPLOYED":
-      await account.deploy()
-
-    if account.connection_status != "CONNECTED":
-      await account.wait_connected()
-
-    connection = account.get_rpc_connection()
-    await connection.connect()
-    await connection.wait_synchronized()
-
-    account_info = await connection.get_account_information()
-    await connection.close()
-    return True, account_info
-  except Exception as e:
-    return False, str(e)
-
-
-# ==========================================
-# PANEL PRINCIPAL
-# ==========================================
+# Panel Principal: Monitoreo
 st.subheader("📊 Monitoreo de Cuentas Conectadas")
 st.info(
     "Selecciona un socio registrado para consultar su balance y estado en"
