@@ -28,12 +28,14 @@ else:
 
 
 def inicializar_db():
-  """Crea la tabla de cuentas si no existe."""
+  """Elimina la tabla anterior y la crea limpia para evitar conflictos."""
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
+    # Forzar la recreación limpia de la tabla de socios
+    cursor.execute("DROP TABLE IF EXISTS socios")
     cursor.execute("""
-            CREATE TABLE IF NOT EXISTS socios (
+            CREATE TABLE socios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
                 account_id TEXT NOT NULL,
@@ -74,7 +76,7 @@ def obtener_socios_db():
   return filas
 
 
-# Inicializar base de datos
+# Inicializar base de datos limpia al arrancar
 inicializar_db()
 
 # ==========================================
@@ -178,7 +180,6 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
 
       if exito:
         account_id_generado = resultado
-        # Guardar localmente para verlo de inmediato en el desplegable
         guardar_socio_db(
             socio_nombre, account_id_generado, mt5_login, mt5_server
         )
