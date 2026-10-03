@@ -84,7 +84,6 @@ def generar_nuevo_codigo():
       conn.close()
       return codigo
     except sqlite3.IntegrityError:
-      # Si el código ya existe por coincidencia, se repite el ciclo
       continue
 
 
@@ -104,7 +103,6 @@ def registrar_usuario_db(nombre, password, codigo_usado):
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
 
-    # Verificar que el código exista y no haya sido usado (o permitir reutilizarlo si prefieres, aquí lo marcamos como usado)
     cursor.execute(
         "SELECT id, usado FROM invitaciones WHERE codigo = ?", (codigo_usado,)
     )
@@ -114,12 +112,10 @@ def registrar_usuario_db(nombre, password, codigo_usado):
       conn.close()
       return False, "El código de invitación no existe."
 
-    # Registrar usuario
     cursor.execute(
         "INSERT INTO usuarios (nombre, password, es_admin) VALUES (?, ?, 0)",
         (nombre, password),
     )
-    # Marcar código como usado
     cursor.execute(
         "UPDATE invitaciones SET usado = 1 WHERE codigo = ?", (codigo_usado,)
     )
@@ -332,22 +328,38 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.header("🎫 Generar Invitación para Socio")
 
-    # Obtener la URL actual de la app de Streamlit si está disponible o base genérica
-    url_base = st.get_option("server.baseUrlPath") or ""
+    # Campo para configurar la URL base de tu aplicación (Streamlit Cloud o Local)
+    url_base_bot = st.sidebar.text_input(
+        "URL de la página del bot",
+        value="https://tu-app.streamlit.app",
+        help=(
+            "Coloca aquí el enlace web público de tu bot en Streamlit Cloud."
+        ),
+    )
 
-    if st.sidebar.button("✨ Generar Nuevo Enlace y Código"):
+    if st.sidebar.button("✨ Generar Enlace y Código"):
       nuevo_cod = generar_nuevo_codigo()
       st.sidebar.success(f"¡Código creado: **{nuevo_cod}**!")
+      # Guardamos el último código generado en session_state para mostrarlo limpio abajo
+      st.session_state.ultimo_codigo = nuevo_cod
 
-    # Mostrar lista de códigos generados recientes en la barra lateral para copiar rápido
-    st.sidebar.markdown("### 📋 Códigos Activos")
+    # Si se acaba de generar o existe un código activo reciente, mostrar el enlace formateado
+    if "ultimo_codigo" in st.session_state:
+      c_reciente = st.session_state.ultimo_codigo
+      st.sidebar.markdown(
+          f"🔗 **Enlace de invitación para enviar:**\n\n"
+          f"¡Hola! Accede al Radar Liquidity Gold Bot aquí: {url_base_bot}\n"
+          f"Tu código de invitación único es: `{c_reciente}`"
+      )
+
+    st.sidebar.markdown("### 📋 Historial de Códigos")
     invitaciones_guardadas = obtener_invitaciones()
     if invitaciones_guardadas:
-      for cod, usado, fecha in invitaciones_guardadas[:5]:  # Mostrar los últimos 5
+      for cod, usado, fecha in invitaciones_guardadas[:5]:
         estado = "🔴 Usado" if usado == 1 else "🟢 Disponible"
         st.sidebar.text(f"{cod} | {estado}")
         if usado == 0:
-          st.sidebar.code(f"Código: {cod}", language="text")
+          st.sidebar.code(f"{url_base_bot} (Código: {cod})", language="text")
 
     st.sidebar.markdown("---")
     st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
