@@ -5,7 +5,7 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS MT5 (COMPACTO Y A LA DERECHA)
+# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS AVANZADOS
 # ==========================================
 st.set_page_config(
     page_title="Radar Liquidity Gold Bot",
@@ -15,7 +15,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Contenedor principal de la tarjeta flotante reducida y alineada a la derecha */
+    /* Tarjeta flotante para configuración MT5 (A la derecha, reducida) */
     .mt5-floating-card {
         background: linear-gradient(135deg, #1e222d 0%, #161a23 100%);
         border: 1px solid #2a2e39;
@@ -27,7 +27,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
     
-    /* Insignia circular superior derecha */
     .mt5-badge-floating {
         position: absolute;
         top: 18px;
@@ -58,6 +57,130 @@ st.markdown("""
         color: #848e9c;
         font-size: 0.8rem;
         margin-bottom: 15px;
+    }
+
+    /* Tarjeta de Gráfico Institucional con Zonas de Liquidez (A la izquierda) */
+    .chart-container-left {
+        background: linear-gradient(180deg, #131722 0%, #1e222d 100%);
+        border: 1px solid #2a2e39;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        margin-top: 10px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .chart-title {
+        color: #ffffff;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .chart-badge {
+        background: rgba(0, 255, 128, 0.15);
+        color: #00ff80;
+        border: 1px solid rgba(0, 255, 128, 0.3);
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* Simulación visual de velas y zonas institucionales en HTML/CSS */
+    .candles-visual-box {
+        background: #0b0e14;
+        border: 1px solid #2a2e39;
+        border-radius: 12px;
+        padding: 20px;
+        height: 220px;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-around;
+        overflow: hidden;
+    }
+
+    /* Líneas de zonas de liquidez */
+    .liquidity-line-resistance {
+        position: absolute;
+        top: 45px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 77, 77, 0.7);
+        border-top: 1px dashed #ff4d4d;
+    }
+    .liquidity-label-res {
+        position: absolute;
+        top: 25px;
+        right: 15px;
+        color: #ff4d4d;
+        font-size: 0.7rem;
+        font-weight: bold;
+        background: rgba(255, 77, 77, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .liquidity-line-support {
+        position: absolute;
+        bottom: 55px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(0, 255, 128, 0.7);
+        border-top: 1px dashed #00ff80;
+    }
+    .liquidity-label-sup {
+        position: absolute;
+        bottom: 32px;
+        right: 15px;
+        color: #00ff80;
+        font-size: 0.7rem;
+        font-weight: bold;
+        background: rgba(0, 255, 128, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    /* Velas individuales */
+    .candle {
+        width: 10px;
+        position: relative;
+        border-radius: 2px;
+    }
+    .candle-wick {
+        position: absolute;
+        width: 2px;
+        left: 4px;
+        background: inherit;
+    }
+    .green {
+        background: #00ff80;
+        height: 70px;
+    }
+    .green .candle-wick {
+        top: -15px;
+        bottom: -15px;
+        background: #00ff80;
+    }
+    .red {
+        background: #ff4d4d;
+        height: 55px;
+    }
+    .red .candle-wick {
+        top: -10px;
+        bottom: -20px;
+        background: #ff4d4d;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -523,12 +646,6 @@ else:
             1. **Escaneo de Zonas de Liquidez:** Analiza en tiempo real las cotizaciones del mercado para detectar acumulaciones de órdenes pendientes, zonas de soporte/resistencia institucionales y posibles áreas de barrido de liquidez (*Buy Stops* y *Sell Stops*).
             2. **Monitoreo en Vivo:** Permite conectar tu cuenta de MetaTrader 5 para supervisar tus métricas operativas directamente desde la plataforma de forma segura y automatizada a través de MetaApi Cloud.
             3. **Cálculo de Spread y Precios:** Monitorea de forma continua los precios *Bid* y *Ask* para estimar el spread actual del mercado antes de que tomes decisiones operativas.
-            
-            ---
-            
-            ### 🚀 ¿Cómo puedes utilizarlo?
-            * **Paso 1 (Exploración):** Navega por las pestañas superiores para revisar los análisis de liquidez y las métricas generales del mercado del oro.
-            * **Paso 2 (Conexión Opcional):** Si deseas integrar tu operativa en vivo, desplázate hasta la **parte inferior de la página** y expande la sección de configuración para vincular tu cuenta de MetaTrader 5 cuando lo consideres necesario.
             """)
 
     with pestana_socio_radar:
@@ -566,29 +683,65 @@ else:
         st.info(
             "💡 Actualmente estás explorando el bot en modo libre. Para usar"
             " el escáner de liquidez en vivo, vincula tu cuenta de MetaTrader 5"
-            " en la sección de configuración ubicada al final de la página."
+            " en la sección de configuración de la derecha."
         )
 
     st.markdown("---")
 
-    # 2. Configuración de MT5 reducida y alineada hacia el MARGEN DERECHO
     if not cuenta_socio:
       st.warning(
-          "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Despliega la"
-          " tarjeta de la derecha para sincronizar tus métricas cuando gustes."
+          "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Configura tus"
+          " credenciales en el panel de la derecha para sincronizar tus métricas."
       )
     else:
       st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
 
-    # Uso de columnas para empujar la tarjeta compacta (ancho 1 de 3) hacia la derecha (columna vacía a la izquierda)
-    col_vacia, col_card_derecha = st.columns([2, 1])
+    # ==========================================
+    # DISTRIBUCIÓN DE DOS COLUMNAS PRINCIPALES
+    # IZQUIERDA: Gráfico de Velas con Zonas de Liquidez
+    # DERECHA: Tarjeta Flotante Compacta de MT5
+    # ==========================================
+    col_izq_grafico, col_der_config = st.columns([1.3, 1])
 
-    with col_card_derecha:
+    with col_izq_grafico:
+      # Renderizado del gráfico institucional con velas verdes/rojas y zonas de liquidez
+      st.markdown(
+          """
+            <div class="chart-container-left">
+                <div class="chart-header">
+                    <h3 class="chart-title">XAU/USD • Análisis Institucional</h3>
+                    <span class="chart-badge">SMC Live Zone</span>
+                </div>
+                <div class="candles-visual-box">
+                    <div class="liquidity-line-resistance"></div>
+                    <span class="liquidity-label-res">BUY STOPS (Resistencia)</span>
+                    
+                    <div class="liquidity-line-support"></div>
+                    <span class="liquidity-label-sup">SELL STOPS (Soporte)</span>
+                    
+                    <!-- Simulación de velas japonesas verdes y rojas -->
+                    <div class="candle red"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                    <div class="candle red"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                    <div class="candle red"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                    <div class="candle red"><div class="candle-wick"></div></div>
+                    <div class="candle green"><div class="candle-wick"></div></div>
+                </div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
+    with col_der_config:
       with st.expander(
           "⚙️ Configurar MT5",
           expanded=not bool(cuenta_socio),
       ):
-        # Renderizado de la tarjeta flotante compacta con la insignia MT5
+        # Tarjeta flotante compacta con insignia MT5 a la derecha
         st.markdown(
             """
                 <div class="mt5-floating-card">
