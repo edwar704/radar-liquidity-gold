@@ -102,6 +102,18 @@ socio_nombre = st.sidebar.text_input("Nombre de Socio")
 metaapi_token = st.sidebar.text_input("Token de MetaApi", type="password")
 metaapi_account_id = st.sidebar.text_input("MetaApi Account ID")
 
+# Guía de ayuda desplegable para los socios
+with st.sidebar.expander("❓ ¿Cómo obtener tus credenciales?"):
+  st.markdown("""
+    **1. Token de MetaApi:**
+    - Entra a [app.metaapi.cloud](https://app.metaapi.cloud/).
+    - Ve a la sección de configuración de perfil o tokens de acceso (API tokens).
+    - Genera o copia tu *Personal Access Token*.
+    
+    **2. Account ID:**
+    - Es el identificador único que te asigna MetaApi al conectar tu cuenta de MetaTrader 5 en su panel.
+    """)
+
 if st.sidebar.button("Guardar y Cifrar en BD"):
   if socio_nombre and metaapi_token and metaapi_account_id:
     token_seguro = cifrar_dato(metaapi_token)
