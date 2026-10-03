@@ -1,37 +1,3 @@
-async def verificar_estado_cuenta(token_cifrado: str, account_id_cifrado: str):
-  """Descifra las credenciales y consulta el estado de la cuenta en MetaApi
-
-  Cloud.
-  """
-  try:
-    token = descifrar_dato(token_cifrado)
-    account_id = descifrar_dato(account_id_cifrado)
-
-    if not token or not account_id:
-      return False, "Error al descifrar las credenciales."
-
-    metaapi = MetaApi(token)
-    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
-
-    # Conectar si no está desplegada o conectada
-    if account.state != "DEPLOYED":
-      await account.deploy()
-
-    if account.connection_status != "CONNECTED":
-      await account.wait_connected()
-
-    # Obtener información de la cuenta (balance, equidad, etc.)
-    connection = account.get_rpc_connection()
-    await connection.connect()
-    await connection.wait_synchronized()
-
-    account_info = await connection.get_account_information()
-    await connection.close()
-    return True, account_info
-  except Exception as e:
-    return False, str(e)
-
-
 import asyncio
 from cryptography.fernet import Fernet
 import sqlite3
@@ -39,25 +5,30 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# CONFIGURACIÓN DE SEGURIDAD (FERNET)
+# CONFIGURACIÓN DE SEGURIDAD Y CREDENCIALES
 # ==========================================
-if "FERNET_KEY" in st.secrets:
+if "FERNET_KEY" in st.secrets and "METAAPI_TOKEN" in st.secrets:
   FERNET_KEY = st.secrets["FERNET_KEY"].encode()
+  MASTER_METAAPI_TOKEN = st.secrets["METAAPI_TOKEN"]
   cipher_suite = Fernet(FERNET_KEY)
 else:
-  st.error("⚠️ Falta configurar la FERNET_KEY en los Secrets de Streamlit.")
+  st.error(
+      "⚠️ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
+      " Streamlit."
+  )
   cipher_suite = None
+  MASTER_METAAPI_TOKEN = ""
 
 
 def cifrar_dato(texto_plano: str) -> str:
-  """Cifra un token o contraseña antes de guardarlo."""
+  """Cifra un dato antes de guardarlo."""
   if cipher_suite:
     return cipher_suite.encrypt(texto_plano.encode()).decode()
   return ""
 
 
 def descifrar_dato(texto_cifrado: str) -> str:
-  """Descifra el token cuando el sistema necesite usarlo."""
+  """Descifra un dato cuando el sistema necesite usarlo."""
   if cipher_suite:
     return cipher_suite.decrypt(texto_cifrado.encode()).decode()
   return ""
@@ -74,34 +45,33 @@ def inicializar_db():
         CREATE TABLE IF NOT EXISTS socios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
-            account_id_cifrado TEXT NOT NULL,
-            token_cifrado TEXT NOT NULL
+            account_id TEXT NOT NULL
         )
     """)
   conn.commit()
   conn.close()
 
 
-def guardar_socio_db(nombre: str, account_id_cifrado: str, token_cifrado: str):
+def guardar_socio_db(nombre: str, account_id: str):
   """Inserta un socio en la base de datos."""
   conn = sqlite3.connect("trading_bot.db")
   cursor = conn.cursor()
   cursor.execute(
       """
-        INSERT INTO socios (nombre, account_id_cifrado, token_cifrado)
-        VALUES (?, ?, ?)
+        INSERT INTO socios (nombre, account_id)
+        VALUES (?, ?)
     """,
-      (nombre, account_id_cifrado, token_cifrado),
+      (nombre, account_id),
   )
   conn.commit()
   conn.close()
 
 
 def obtener_socios_db():
-  """Recupera la lista completa de socios registrados (incluyendo datos cifrados)."""
+  """Recupera la lista completa de socios registrados."""
   conn = sqlite3.connect("trading_bot.db")
   cursor = conn.cursor()
-  cursor.execute("SELECT id, nombre, account_id_cifrado, token_cifrado FROM socios")
+  cursor.execute("SELECT id, nombre, account_id FROM socios")
   filas = cursor.fetchall()
   conn.close()
   return filas
@@ -119,82 +89,125 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📈 Radar Liquidity Gold Bot - Panel de Socios y Monitoreo MT5")
+st.title(
+    "📈 Radar Liquidity Gold Bot - Onboarding Automático de Cuentas MT5"
+)
 st.write(
-    "Plataforma cloud segura con almacenamiento cifrado y conexión en vivo a"
+    "Conexión inteligente y automatizada de cuentas de trading mediante"
     " MetaApi."
 )
 
 # ==========================================
-# SECCIÓN: REGISTRO / CREDENCIALES DE METAAPI
+# SECCIÓN: REGISTRO AUTOMÁTICO (PANEL LATERAL)
 # ==========================================
-st.sidebar.header("🔐 Configuración MetaApi MT5")
+st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
 socio_nombre = st.sidebar.text_input("Nombre de Socio")
-metaapi_token = st.sidebar.text_input("Token de MetaApi", type="password")
-metaapi_account_id = st.sidebar.text_input("MetaApi Account ID")
+mt5_login = st.sidebar.text_input("Número de Cuenta (Login)")
+mt5_password = st.sidebar.text_input("Contraseña de Trading", type="password")
+mt5_server = st.sidebar.text_input(
+    "Servidor del Bróker (Ej: Exness-Real12)"
+)
 
-# Guía de ayuda desplegable para los socios
-with st.sidebar.expander("❓ ¿Cómo obtener tus credenciales?"):
+with st.sidebar.expander("ℹ️ ¿Qué datos necesito?"):
   st.markdown("""
-    **1. Token de MetaApi:**
-    - Entra a [app.metaapi.cloud](https://app.metaapi.cloud/).
-    - Ve a la sección de configuración de perfil o tokens de acceso (API tokens).
-    - Genera o copia tu *Personal Access Token*.
-    
-    **2. Account ID:**
-    - Es el identificador único que te asigna MetaApi al conectar tu cuenta de MetaTrader 5 en su panel.
+    Solo ingresa los mismos datos con los que inicias sesión en tu MetaTrader 5:
+    - **Login:** Tu número de cuenta.
+    - **Contraseña:** Tu contraseña principal de trading.
+    - **Servidor:** El nombre exacto del servidor de tu bróker.
     """)
 
-if st.sidebar.button("Guardar y Cifrar en BD"):
-  if socio_nombre and metaapi_token and metaapi_account_id:
-    token_seguro = cifrar_dato(metaapi_token)
-    account_seguro = cifrar_dato(metaapi_account_id)
+if st.sidebar.button("Registrar y Conectar Cuenta"):
+  if socio_nombre and mt5_login and mt5_password and mt5_server:
+    with st.spinner("Creando cuenta automáticamente en MetaApi Cloud..."):
 
-    guardar_socio_db(socio_nombre, account_seguro, token_seguro)
-    st.sidebar.success(
-        f"¡Credenciales de MetaApi para {socio_nombre} guardadas y cifradas en la"
-        " BD! 🔒"
-    )
+      async def registrar_en_metaapi():
+        try:
+          metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+          account_api = metaapi.metapiv1.get_account_api()
+
+          # Crear la cuenta en MetaApi de forma programática
+          account = await account_api.create_account({
+              "name": f"Bot - {socio_nombre}",
+              "type": "cloud",
+              "login": mt5_login,
+              "password": mt5_password,
+              "server": mt5_server,
+              "platform": "mt5",
+              "magic": 123456,
+          })
+          return True, account.id
+        except Exception as ex:
+          return False, str(ex)
+
+      exito, resultado = asyncio.run(registrar_en_metaapi())
+
+      if exito:
+        account_id_generado = resultado
+        guardar_socio_db(socio_nombre, account_id_generado)
+        st.sidebar.success(
+            f"¡Cuenta para {socio_nombre} conectada y registrada con éxito! 🟢"
+        )
+      else:
+        st.sidebar.error(
+            f"Error al conectar con el bróker. Verifica tus datos. Detalle:"
+            f" {resultado}"
+        )
   else:
-    st.sidebar.warning(
-        "Por favor completa todos los campos de MetaApi para continuar."
-    )
+    st.sidebar.warning("Por favor completa todos los campos para continuar.")
+
+
+# ==========================================
+# FUNCIÓN ASÍNCRONA DE CONSULTA EN VIVO
+# ==========================================
+async def verificar_estado_cuenta(account_id: str):
+  """Consulta el estado de la cuenta en MetaApi Cloud."""
+  try:
+    metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
+
+    if account.state != "DEPLOYED":
+      await account.deploy()
+
+    if account.connection_status != "CONNECTED":
+      await account.wait_connected()
+
+    connection = account.get_rpc_connection()
+    await connection.connect()
+    await connection.wait_synchronized()
+
+    account_info = await connection.get_account_information()
+    await connection.close()
+    return True, account_info
+  except Exception as e:
+    return False, str(e)
+
 
 # ==========================================
 # PANEL PRINCIPAL
 # ==========================================
-st.subheader("📊 Monitoreo de Cuentas MT5 en Vivo")
+st.subheader("📊 Monitoreo de Cuentas Conectadas")
 st.info(
-    "Selecciona un socio registrado para consultar su balance, equidad y"
-    " estado en tiempo real a través de MetaApi."
+    "Selecciona un socio registrado para consultar su balance y estado en"
+    " tiempo real."
 )
 
 socios = obtener_socios_db()
 if socios:
-  # Crear un selector de socios en el panel principal
   nombres_socios = {socio[1]: socio for socio in socios}
   socio_seleccionado = st.selectbox(
       "Selecciona un Socio para Monitorear", list(nombres_socios.keys())
   )
 
   if socio_seleccionado:
-    s_id, s_nombre, s_acc_cifrado, s_token_cifrado = nombres_socios[
-        socio_seleccionado
-    ]
+    s_id, s_nombre, s_acc_id = nombres_socios[socio_seleccionado]
+    st.write(f"**Socio Activo:** {s_nombre} | **Account ID:** `{s_acc_id}`")
 
-    st.write(f"**Socio Activo:** {s_nombre}")
-
-    if st.button("Consultar Estado en Vivo con MetaApi"):
-      with st.spinner(
-          "Conectando de forma segura con los servidores de MetaApi..."
-      ):
-        # Ejecutar la función asíncrona de consulta
-        exito, resultado = asyncio.run(
-            verificar_estado_cuenta(s_token_cifrado, s_acc_cifrado)
-        )
+    if st.button("Consultar Balance y Estado en Vivo"):
+      with st.spinner("Consultando servidores de MetaApi Cloud..."):
+        exito, resultado = asyncio.run(verificar_estado_cuenta(s_acc_id))
 
         if exito:
-          st.success("¡Conexión exitosa con la cuenta MT5! 🟢")
+          st.success("¡Datos obtenidos correctamente! 🟢")
           col_a, col_b, col_c = st.columns(3)
           with col_a:
             st.metric(
@@ -208,16 +221,15 @@ if socios:
             st.metric(label="Moneda", value=resultado.get('currency', 'USD'))
         else:
           st.error(
-              f"No se pudo establecer la conexión con MetaApi. Detalle:"
-              f" {resultado}"
+              f"No se pudo consultar la cuenta. Detalle: {resultado}"
           )
 else:
   st.warning(
-      "No hay cuentas registradas todavía. Usa el panel lateral para registrar"
-      " tu primera cuenta."
+      "No hay cuentas conectadas todavía. Utiliza el panel lateral para registrar"
+      " una cuenta."
   )
 
-# Simulación de métricas de mercado generales
+# Métricas generales de mercado
 st.markdown("---")
 st.subheader("📈 Mercado de Referencia")
 col1, col2, col3 = st.columns(3)
@@ -226,4 +238,4 @@ with col1:
 with col2:
   st.metric(label="Infraestructura Cloud", value="Activa 🟢", delta="MetaApi")
 with col3:
-  st.metric(label="Seguridad Fernet", value="Protegido 🔒", delta="Activa")
+  st.metric(label="Onboarding", value="Automático ⚡", delta="Habilitado")
