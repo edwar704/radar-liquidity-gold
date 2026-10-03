@@ -5,13 +5,38 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA
+# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS MT5
 # ==========================================
 st.set_page_config(
     page_title="Radar Liquidity Gold Bot",
     page_icon="🔒",
     layout="wide",
 )
+
+# Inyección de estilos CSS inspirados en la interfaz de MetaTrader 5 (Tonos oscuros, azulados y acentos limpios)
+st.markdown("""
+    <style>
+    .mt5-card {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    .mt5-card h3 {
+        color: #008eff;
+        font-family: sans-serif;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+    .mt5-card p {
+        color: #d1d4dc;
+        font-size: 0.9rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. CONFIGURACIÓN DE CREDENCIALES Y SECRETS
@@ -535,34 +560,40 @@ else:
 
     st.markdown("---")
 
-    # 2. Configuración de MT5 compacta ubicada en la PARTE INFERIOR
+    # 2. Configuración de MT5 en tarjeta compacta vertical (Estilo MT5) en la PARTE INFERIOR
     if not cuenta_socio:
       st.warning(
           "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Si deseas"
-          " sincronizar tus métricas, abre el panel de abajo."
+          " sincronizar tus métricas, despliega el panel inferior."
       )
     else:
       st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
 
     with st.expander(
-        "⚙️ Configuración de mi Cuenta MT5 (Opcional)",
+        "⚙️ Configuración y Conexión de mi Cuenta MT5 (Opcional)",
         expanded=not bool(cuenta_socio),
     ):
+      # Contenedor con diseño compacto y colores inspirados en MetaTrader 5
+      st.markdown("""
+            <div class="mt5-card">
+                <h3>🎛 Panel de Conexión Segura MetaTrader 5</h3>
+                <p>Ingresa tus credenciales de acceso facilitadas por tu bróker para sincronizar el bot con tu cuenta MT5 en la nube.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
       if cuenta_socio:
         st.caption(
             f"Cuenta Actual Vinculada → Login: `{cuenta_socio['login']}` |"
             f" Servidor: `{cuenta_socio['server']}`"
         )
 
-      col_f1, col_f2 = st.columns(2)
-      with col_f1:
-        mt5_login = st.text_input(
-            "Número de Cuenta (Login)", key="exp_login_inf"
-        )
-      with col_f2:
-        mt5_password = st.text_input(
-            "Contraseña de Trading", type="password", key="exp_pass_inf"
-        )
+      # Formulario vertical y compacto
+      mt5_login = st.text_input(
+          "Número de Cuenta (Login)", key="exp_login_inf"
+      )
+      mt5_password = st.text_input(
+          "Contraseña de Trading", type="password", key="exp_pass_inf"
+      )
 
       opciones_brokers = [
           "Selecciona servidor...",
@@ -600,6 +631,7 @@ else:
       else:
         mt5_server = ""
 
+      st.markdown("<br>", unsafe_allow_html=True)
       if st.button("Guardar y Conectar Cuenta MT5", key="btn_guardar_inf"):
         if mt5_login and mt5_password and mt5_server:
           with st.spinner(
