@@ -528,9 +528,75 @@ else:
 
     with pestana_socio_radar:
       st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
+
+      # Variables de control en sesión para las velas en tiempo real
+      if "live_candles" not in st.session_state:
+        st.session_state.live_candles = {
+            "Tiempos": [
+                "10:00",
+                "10:15",
+                "10:30",
+                "10:45",
+                "11:00",
+                "11:15",
+                "11:30",
+                "11:45",
+                "12:00",
+                "12:15",
+            ],
+            "Open": [
+                2640.0,
+                2642.5,
+                2641.0,
+                2643.8,
+                2645.0,
+                2642.0,
+                2646.5,
+                2648.0,
+                2651.0,
+                2649.5,
+            ],
+            "High": [
+                2643.0,
+                2645.0,
+                2643.5,
+                2646.0,
+                2647.2,
+                2647.5,
+                2649.0,
+                2652.5,
+                2653.0,
+                2654.2,
+            ],
+            "Low": [
+                2638.5,
+                2641.0,
+                2639.2,
+                2642.0,
+                2642.5,
+                2641.0,
+                2644.0,
+                2647.0,
+                2648.5,
+                2648.0,
+            ],
+            "Close": [
+                2642.5,
+                2641.0,
+                2643.8,
+                2645.0,
+                2642.0,
+                2646.5,
+                2648.0,
+                2651.0,
+                2649.5,
+                2653.8,
+            ],
+        }
+
       if cuenta_socio:
-        if st.button("🔍 Escanear Zonas de Liquidez", key="btn_radar_socio"):
-          with st.spinner("Analizando cotizaciones del Oro..."):
+        if st.button("🔍 Escanear Zonas de Liquidez y Actualizar Gráfico", key="btn_radar_socio"):
+          with st.spinner("Conectando con MetaApi Cloud para obtener precio en vivo..."):
             exito_p, simbolo, datos_precio = asyncio.run(
                 obtener_precio_oro(cuenta_socio["account_id"])
             )
@@ -538,30 +604,34 @@ else:
               bid = datos_precio.get("bid", 0)
               ask = datos_precio.get("ask", 0)
               spread = round((ask - bid) * 10, 1)
+
+              # Actualizar la última vela con el precio real obtenido del bróker
+              nuevo_open = st.session_state.live_candles["Close"][-1]
+              nuevo_close = bid
+              nuevo_high = max(nuevo_open, nuevo_close) + 1.2
+              nuevo_low = min(nuevo_open, nuevo_close) - 1.2
+
+              st.session_state.live_candles["Tiempos"].append("En Vivo")
+              st.session_state.live_candles["Open"].append(nuevo_open)
+              st.session_state.live_candles["High"].append(nuevo_high)
+              st.session_state.live_candles["Low"].append(nuevo_low)
+              st.session_state.live_candles["Close"].append(nuevo_close)
+
+              st.success(f"¡Precio en vivo obtenido de `{simbolo}`! Gráfico actualizado. 🟢")
+              
               col1, col2, col3 = st.columns(3)
               with col1:
                 st.metric(label="Precio Bid (Venta)", value=f"${bid:,.2f}")
               with col2:
                 st.metric(label="Precio Ask (Compra)", value=f"${ask:,.2f}")
               with col3:
-                st.metric(label="Spread Estimado", value=f"{spread} pips")
-              st.markdown("---")
-              st.markdown("### 📊 Zonas Institucionales Detectadas")
-              st.info(
-                  "💡 **Análisis de Estructura de Liquidez:**\n"
-                  f"- **Precio de Mercado Actual:** ${bid:,.2f}\n"
-                  "- **Zona de Resistencia / Liquidez Superior (Buy Stops):**"
-                  f" Estimada en `${bid + 5.00:,.2f}`\n"
-                  "- **Zona de Soporte / Liquidez Inferior (Sell Stops):**"
-                  f" Estimada en `${bid - 5.00:,.2f}`"
-              )
+                st.metric(label="Spread", value=f"{spread} pips")
             else:
-              st.error(f"No se pudo obtener el precio del oro: {datos_precio}")
+              st.error(f"No se pudo obtener el precio en vivo: {datos_precio}")
       else:
         st.info(
-            "💡 Actualmente estás explorando el bot en modo libre. Para usar"
-            " el escáner de liquidez en vivo, vincula tu cuenta de MetaTrader 5"
-            " en la sección de configuración de la derecha."
+            "💡 Vincula tu cuenta de MetaTrader 5 en la derecha para alimentar"
+            " el gráfico con precios reales del mercado en tiempo real."
         )
 
     st.markdown("---")
@@ -576,79 +646,24 @@ else:
 
     # ==========================================
     # DISTRIBUCIÓN DE DOS COLUMNAS PRINCIPALES
-    # IZQUIERDA: Gráfico de Velas Japonesas Reales (Plotly Candlestick)
+    # IZQUIERDA: Gráfico de Velas Actualizado en Tiempo Real
     # DERECHA: Tarjeta Flotante Compacta de MT5
     # ==========================================
     col_izq_grafico, col_der_config = st.columns([1.4, 1])
 
     with col_izq_grafico:
-      st.markdown("### 📊 XAU/USD • Velas y Zonas de Liquidez SMC")
+      st.markdown("### 📊 XAU/USD • Velas y Zonas de Liquidez en Vivo")
 
-      # Creación de datos de Velas Japonesas (Apertura, Máximo, Mínimo, Cierre)
+      # Carga de datos de velas (estáticos + actualizaciones en vivo)
+      c_data = st.session_state.live_candles
       df_velas = pd.DataFrame({
-          "Tiempo": [
-              "10:00",
-              "10:15",
-              "10:30",
-              "10:45",
-              "11:00",
-              "11:15",
-              "11:30",
-              "11:45",
-              "12:00",
-              "12:15",
-          ],
-          "Open": [
-              2640.0,
-              2642.5,
-              2641.0,
-              2643.8,
-              2645.0,
-              2642.0,
-              2646.5,
-              2648.0,
-              2651.0,
-              2649.5,
-          ],
-          "High": [
-              2643.0,
-              2645.0,
-              2643.5,
-              2646.0,
-              2647.2,
-              2647.5,
-              2649.0,
-              2652.5,
-              2653.0,
-              2654.2,
-          ],
-          "Low": [
-              2638.5,
-              2641.0,
-              2639.2,
-              2642.0,
-              2642.5,
-              2641.0,
-              2644.0,
-              2647.0,
-              2648.5,
-              2648.0,
-          ],
-          "Close": [
-              2642.5,
-              2641.0,
-              2643.8,
-              2645.0,
-              2642.0,
-              2646.5,
-              2648.0,
-              2651.0,
-              2649.5,
-              2653.8,
-          ],
+          "Tiempo": c_data["Tiempos"],
+          "Open": c_data["Open"],
+          "High": c_data["High"],
+          "Low": c_data["Low"],
+          "Close": c_data["Close"],
       })
 
-      # Configuración del gráfico de velas institucionales
       fig = go.Figure(
           data=[
               go.Candlestick(
@@ -665,9 +680,12 @@ else:
           ]
       )
 
-      # Líneas de zonas de liquidez institucionales
+      # Líneas dinámicas de liquidez basadas en el rango actual
+      max_val = max(c_data["High"])
+      min_val = min(c_data["Low"])
+
       fig.add_hline(
-          y=2653.0,
+          y=max_val,
           line_dash="dash",
           line_color="#ff4d4d",
           annotation_text="BUY STOPS (Resistencia)",
@@ -676,7 +694,7 @@ else:
       )
 
       fig.add_hline(
-          y=2639.0,
+          y=min_val,
           line_dash="dash",
           line_color="#00ff80",
           annotation_text="SELL STOPS (Soporte)",
@@ -684,13 +702,12 @@ else:
           annotation_font_color="#00ff80",
       )
 
-      # Estilo profesional oscuro tipo MetaTrader / TradingView
       fig.update_layout(
           paper_bgcolor="#131722",
           plot_bgcolor="#131722",
           font=dict(color="#d1d4dc", size=11),
           margin=dict(l=10, r=10, t=30, b=10),
-          height=260,
+          height=270,
           xaxis=dict(showgrid=True, gridcolor="#2a2e39"),
           yaxis=dict(showgrid=True, gridcolor="#2a2e39"),
           showlegend=False,
@@ -700,7 +717,7 @@ else:
 
     with col_der_config:
       with st.expander(
-          "⚙️️ Configurar MT5",
+          "⚙️ Configurar MT5",
           expanded=not bool(cuenta_socio),
       ):
         # Tarjeta flotante compacta con insignia MT5 a la derecha
@@ -799,4 +816,4 @@ else:
               else:
                 st.error(f"Error al conectar con el bróker: {resultado}")
           else:
-            st.warning("Por forma completa todos los campos de la cuenta.")
+            st.warning("Por favor completa todos los campos de la cuenta.")
