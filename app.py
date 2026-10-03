@@ -22,7 +22,7 @@ if "FERNET_KEY" in st.secrets and "METAAPI_TOKEN" in st.secrets:
   cipher_suite = Fernet(FERNET_KEY)
 else:
   st.error(
-      "⚠️️ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
+      "⚠ Faltan configurar FERNET_KEY o METAAPI_TOKEN en los Secrets de"
       " Streamlit."
   )
   cipher_suite = None
@@ -38,7 +38,6 @@ def inicializar_db():
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
-    # Recreamos la tabla limpia para corregir cualquier esquema viejo
     cursor.execute("DROP TABLE IF EXISTS socios")
     cursor.execute("""
             CREATE TABLE socios (
@@ -90,7 +89,9 @@ async def verificar_estado_cuenta(account_id: str):
   """Consulta el estado de la cuenta en MetaApi Cloud."""
   try:
     metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-    account = await metaapi.metapiv1.get_account_api().get_account(account_id)
+    # CORREGIDO: Acceso directo a get_account_api()
+    account_api = metaapi.get_account_api()
+    account = await account_api.get_account(account_id)
 
     if account.state != "DEPLOYED":
       await account.deploy()
@@ -144,7 +145,8 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
       async def registrar_en_metaapi():
         try:
           metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-          account_api = metaapi.metapiv1.get_account_api()
+          # CORREGIDO: Acceso directo a get_account_api()
+          account_api = metaapi.get_account_api()
 
           account = await account_api.create_account({
               "name": f"Bot - {socio_nombre}",
