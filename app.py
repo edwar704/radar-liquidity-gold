@@ -472,118 +472,27 @@ else:
 
     cuenta_socio = obtener_cuenta_socio(st.session_state.user_name)
 
-    # 1. Bienvenida y opción desplegable no intrusiva para conectar MT5
-    if not cuenta_socio:
-      st.info(
-          "👋 **¡Bienvenido a la comunidad!** Ya puedes explorar las funciones"
-          " informativas del bot. Cuando desees conectar tu cuenta de"
-          " MetaTrader 5 para sincronizar tus operaciones y métricas en vivo,"
-          " despliega la sección de abajo."
-      )
-    else:
-      st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
-
-    # Desplegable para gestionar la conexión MT5 en cualquier momento
-    with st.expander(
-        "⚙️ Configuración y Conexión de mi Cuenta MetaTrader 5 (MT5)",
-        expanded=not bool(cuenta_socio),
-    ):
-      if cuenta_socio:
-        st.write(
-            f"**Cuenta Actual Vinculada:** Login: `{cuenta_socio['login']}` |"
-            f" Servidor: `{cuenta_socio['server']}`"
-        )
-        st.markdown("Si deseas actualizarla o cambiarla, ingresa los nuevos datos:")
-
-      mt5_login = st.text_input("Número de Cuenta (Login)", key="exp_login")
-      mt5_password = st.text_input(
-          "Contraseña de Trading", type="password", key="exp_pass"
-      )
-
-      opciones_brokers = [
-          "Selecciona o escribe...",
-          "MetaQuotes-Demo",
-          "VantageInternational-Live 01",
-          "VantageInternational-Live 02",
-          "VantageInternational-Live 03",
-          "VantageInternational-Live 04",
-          "VantageInternational-Demo",
-          "Exness-Real11",
-          "Exness-Real12",
-          "Exness-Real13",
-          "Exness-Trial",
-          "RoboForex-Pro",
-          "RoboForex-ECN",
-          "RoboForex-Demo",
-          "ICMarketsSC-Live 01",
-          "ICMarketsSC-Live 02",
-          "ICMarketsSC-Demo",
-          "Otro (Escribir manualmente)",
-      ]
-
-      broker_seleccionado = st.selectbox(
-          "Servidor del Bróker", opciones_brokers, key="exp_broker"
-      )
-
-      if broker_seleccionado == "Otro (Escribir manualmente)":
-        mt5_server = st.text_input(
-            "Escribe el servidor exacto del bróker", key="exp_otro_serv"
-        )
-      elif broker_seleccionado != "Selecciona o escribe...":
-        mt5_server = broker_seleccionado
-      else:
-        mt5_server = ""
-
-      if st.button("Guardar y Conectar Cuenta MT5"):
-        if mt5_login and mt5_password and mt5_server:
-          with st.spinner(
-              "Conectando tu cuenta de forma segura a MetaApi Cloud..."
-          ):
-
-            async def registrar_socio_metaapi():
-              try:
-                metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-                account = await metaapi.metatrader_account_api.create_account({
-                    "name": f"Socio - {st.session_state.user_name}",
-                    "type": "cloud",
-                    "login": mt5_login,
-                    "password": mt5_password,
-                    "server": mt5_server,
-                    "platform": "mt5",
-                    "magic": 123456,
-                })
-                return True, account.id
-              except Exception as ex:
-                return False, str(ex)
-
-            exito, resultado = asyncio.run(registrar_socio_metaapi())
-
-            if exito:
-              guardar_relacion_socio(
-                  st.session_state.user_name, resultado, mt5_login, mt5_server
-              )
-              st.success("¡Cuenta conectada y vinculada con éxito! 🟢")
-              st.rerun()
-            else:
-              st.error(f"Error al conectar con el bróker: {resultado}")
-        else:
-          st.warning("Por favor completa todos los campos de la cuenta.")
-
-    st.markdown("---")
-
-    # 2. Pestañas de contenido del bot para el socio
+    # 1. Pestañas principales de contenido del bot para el socio (Arriba)
     pestana_socio_info, pestana_socio_radar = st.tabs([
         "📚 Información y Guía del Bot",
         "⚡ Radar de Liquidez XAU/USD",
     ])
 
     with pestana_socio_info:
-      st.subheader("Bienvenido al Radar Liquidity Gold")
+      st.subheader("🤖 ¿Qué es y cómo funciona el Radar Liquidity Gold Bot?")
       st.markdown("""
-            Este bot está diseñado para ayudarte a identificar las mejores zonas institucionales de liquidez en el mercado del oro (**XAU/USD**).
+            Bienvenido a tu plataforma de análisis institucional. Este bot está diseñado exclusivamente para operar y analizar el mercado del oro (**XAU/USD**) utilizando conceptos avanzados de **Smart Money Concepts (SMC)** y gestión de liquidez institucional.
             
-            * **¿Cómo empezar?** Puedes explorar el análisis de liquidez en la pestaña contigua.
-            * **Conexión opcional:** Si deseas consultar los balances y estados en tiempo real de tus operaciones, vincula tu cuenta MT5 utilizando el menú desplegable superior en el momento que consideres oportuno.
+            ### 🔍 ¿Qué es lo que hace el bot?
+            1. **Escaneo de Zonas de Liquidez:** Analiza en tiempo real las cotizaciones del mercado para detectar acumulaciones de órdenes pendientes, zonas de soporte/resistencia institucionales y posibles áreas de barrido de liquidez (*Buy Stops* y *Sell Stops*).
+            2. **Monitoreo en Vivo:** Permite conectar tu cuenta de MetaTrader 5 para supervisar tus métricas operativas directamente desde la plataforma de forma segura y automatizada a través de MetaApi Cloud.
+            3. **Cálculo de Spread y Precios:** Monitorea de forma continua los precios *Bid* y *Ask* para estimar el spread actual del mercado antes de que tomes decisiones operativas.
+            
+            ---
+            
+            ### 🚀 ¿Cómo puedes utilizarlo?
+            * **Paso 1 (Exploración):** Navega por las pestañas superiores para revisar los análisis de liquidez y las métricas generales del mercado del oro.
+            * **Paso 2 (Conexión Opcional):** Si deseas integrar tu operativa en vivo, desplázate hasta la **parte inferior de la página** y expande la sección de configuración para vincular tu cuenta de MetaTrader 5 cuando lo consideres necesario.
             """)
 
     with pestana_socio_radar:
@@ -621,5 +530,107 @@ else:
         st.info(
             "💡 Actualmente estás explorando el bot en modo libre. Para usar"
             " el escáner de liquidez en vivo, vincula tu cuenta de MetaTrader 5"
-            " en la sección superior desplegable."
+            " en la sección de configuración ubicada al final de la página."
         )
+
+    st.markdown("---")
+
+    # 2. Configuración de MT5 compacta ubicada en la PARTE INFERIOR
+    if not cuenta_socio:
+      st.warning(
+          "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Si deseas"
+          " sincronizar tus métricas, abre el panel de abajo."
+      )
+    else:
+      st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
+
+    with st.expander(
+        "⚙️ Configuración de mi Cuenta MT5 (Opcional)",
+        expanded=not bool(cuenta_socio),
+    ):
+      if cuenta_socio:
+        st.caption(
+            f"Cuenta Actual Vinculada → Login: `{cuenta_socio['login']}` |"
+            f" Servidor: `{cuenta_socio['server']}`"
+        )
+
+      col_f1, col_f2 = st.columns(2)
+      with col_f1:
+        mt5_login = st.text_input(
+            "Número de Cuenta (Login)", key="exp_login_inf"
+        )
+      with col_f2:
+        mt5_password = st.text_input(
+            "Contraseña de Trading", type="password", key="exp_pass_inf"
+        )
+
+      opciones_brokers = [
+          "Selecciona servidor...",
+          "MetaQuotes-Demo",
+          "VantageInternational-Live 01",
+          "VantageInternational-Live 02",
+          "VantageInternational-Live 03",
+          "VantageInternational-Live 04",
+          "VantageInternational-Demo",
+          "Exness-Real11",
+          "Exness-Real12",
+          "Exness-Real13",
+          "Exness-Trial",
+          "RoboForex-Pro",
+          "RoboForex-ECN",
+          "RoboForex-Demo",
+          "ICMarketsSC-Live 01",
+          "ICMarketsSC-Live 02",
+          "ICMarketsSC-Demo",
+          "XMGlobal-MT5 18",
+          "Weltrade",
+          "Otro (Escribir manualmente)",
+      ]
+
+      broker_seleccionado = st.selectbox(
+          "Servidor del Bróker", opciones_brokers, key="exp_broker_inf"
+      )
+
+      if broker_seleccionado == "Otro (Escribir manualmente)":
+        mt5_server = st.text_input(
+            "Escribe el servidor exacto del bróker", key="exp_otro_serv_inf"
+        )
+      elif broker_seleccionado != "Selecciona servidor...":
+        mt5_server = broker_seleccionado
+      else:
+        mt5_server = ""
+
+      if st.button("Guardar y Conectar Cuenta MT5", key="btn_guardar_inf"):
+        if mt5_login and mt5_password and mt5_server:
+          with st.spinner(
+              "Conectando tu cuenta de forma segura a MetaApi Cloud..."
+          ):
+
+            async def registrar_socio_metaapi():
+              try:
+                metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+                account = await metaapi.metatrader_account_api.create_account({
+                    "name": f"Socio - {st.session_state.user_name}",
+                    "type": "cloud",
+                    "login": mt5_login,
+                    "password": mt5_password,
+                    "server": mt5_server,
+                    "platform": "mt5",
+                    "magic": 123456,
+                })
+                return True, account.id
+              except Exception as ex:
+                return False, str(ex)
+
+            exito, resultado = asyncio.run(registrar_socio_metaapi())
+
+            if exito:
+              guardar_relacion_socio(
+                  st.session_state.user_name, resultado, mt5_login, mt5_server
+              )
+              st.success("¡Cuenta conectada y vinculada con éxito! 🟢")
+              st.rerun()
+            else:
+              st.error(f"Error al conectar con el bróker: {resultado}")
+        else:
+          st.warning("Por favor completa todos los campos de la cuenta.")
