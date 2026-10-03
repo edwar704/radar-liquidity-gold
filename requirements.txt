@@ -3,3 +3,4 @@ cryptography
 metaapi-cloud-sdk
 requests
 plotly
+pandas
