@@ -307,7 +307,7 @@ if not st.session_state.logged_in:
         "Confirma tu Clave de Acceso", type="password", key="reg_pass2"
     )
 
-    if st.button("Registrar y Generar Cuenta"):
+    if st.button("Registrarse en el Bot"):
       if not reg_nombre or not reg_codigo or not reg_pass1:
         st.warning("Por favor completa todos los campos.")
       elif reg_pass1 != reg_pass2:
@@ -423,10 +423,7 @@ else:
                     f"No se pudo consultar la cuenta. Detalle: {resultado}"
                 )
       else:
-        st.info(
-            "No hay cuentas de socios registradas todavía. Los socios deben"
-            " registrar su cuenta al iniciar sesión."
-        )
+        st.info("No hay cuentas de socios registradas todavía.")
 
     with pestana_admin_liquidez:
       st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
@@ -470,21 +467,38 @@ else:
         )
 
   else:
-    # VISTA DE SOCIO / USUARIO NORMAL
+    # VISTA DE SOCIO / USUARIO NORMAL (Nuevo flujo no invasivo)
     st.title("📈 Panel de Socio - Radar Liquidity Gold Bot")
 
     cuenta_socio = obtener_cuenta_socio(st.session_state.user_name)
 
+    # 1. Bienvenida y opción desplegable no intrusiva para conectar MT5
     if not cuenta_socio:
-      st.warning(
-          "⚠ **Configuración Inicial:** Aún no has vinculado tu cuenta de"
-          " MetaTrader 5 al bot. Por favor ingresa los datos de tu cuenta de"
-          " trading para comenzar."
+      st.info(
+          "👋 **¡Bienvenido a la comunidad!** Ya puedes explorar las funciones"
+          " informativas del bot. Cuando desees conectar tu cuenta de"
+          " MetaTrader 5 para sincronizar tus operaciones y métricas en vivo,"
+          " despliega la sección de abajo."
       )
+    else:
+      st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
 
-      st.subheader("🚀 Conectar Mi Cuenta MT5")
-      mt5_login = st.text_input("Número de Cuenta (Login)")
-      mt5_password = st.text_input("Contraseña de Trading", type="password")
+    # Desplegable para gestionar la conexión MT5 en cualquier momento
+    with st.expander(
+        "⚙️ Configuración y Conexión de mi Cuenta MetaTrader 5 (MT5)",
+        expanded=not bool(cuenta_socio),
+    ):
+      if cuenta_socio:
+        st.write(
+            f"**Cuenta Actual Vinculada:** Login: `{cuenta_socio['login']}` |"
+            f" Servidor: `{cuenta_socio['server']}`"
+        )
+        st.markdown("Si deseas actualizarla o cambiarla, ingresa los nuevos datos:")
+
+      mt5_login = st.text_input("Número de Cuenta (Login)", key="exp_login")
+      mt5_password = st.text_input(
+          "Contraseña de Trading", type="password", key="exp_pass"
+      )
 
       opciones_brokers = [
           "Selecciona o escribe...",
@@ -508,17 +522,19 @@ else:
       ]
 
       broker_seleccionado = st.selectbox(
-          "Servidor del Bróker", opciones_brokers
+          "Servidor del Bróker", opciones_brokers, key="exp_broker"
       )
 
       if broker_seleccionado == "Otro (Escribir manualmente)":
-        mt5_server = st.text_input("Escribe el servidor exacto del bróker")
+        mt5_server = st.text_input(
+            "Escribe el servidor exacto del bróker", key="exp_otro_serv"
+        )
       elif broker_seleccionado != "Selecciona o escribe...":
         mt5_server = broker_seleccionado
       else:
         mt5_server = ""
 
-      if st.button("Registrar y Conectar mi Cuenta"):
+      if st.button("Guardar y Conectar Cuenta MT5"):
         if mt5_login and mt5_password and mt5_server:
           with st.spinner(
               "Conectando tu cuenta de forma segura a MetaApi Cloud..."
@@ -551,50 +567,29 @@ else:
             else:
               st.error(f"Error al conectar con el bróker: {resultado}")
         else:
-          st.warning("Por favor completa todos los campos.")
-    else:
-      st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
+          st.warning("Por favor completa todos los campos de la cuenta.")
 
-      pestana_socio_estado, pestana_socio_radar = st.tabs([
-          "📊 Estado de Mi Cuenta",
-          "⚡ Radar de Liquidez XAU/USD",
-      ])
+    st.markdown("---")
 
-      with pestana_socio_estado:
-        st.subheader("Información y Balance en Vivo")
-        st.write(
-            f"**🔢 Login:** `{cuenta_socio['login']}` | **🏢 Servidor:**"
-            f" `{cuenta_socio['server']}`"
-        )
-        if st.button("Actualizar Balance y Equidad"):
-          with st.spinner("Consultando servidores..."):
-            exito, resultado = asyncio.run(
-                verificar_estado_cuenta(cuenta_socio["account_id"])
-            )
-            if exito:
-              col_a, col_b, col_c = st.columns(3)
-              with col_a:
-                st.metric(
-                    label="Balance",
-                    value=f"${resultado.get('balance', 0):,.2f}",
-                )
-              with col_b:
-                st.metric(
-                    label="Equidad",
-                    value=f"${resultado.get('equity', 0):,.2f}",
-                )
-              with col_c:
-                st.metric(
-                    label="Moneda", value=resultado.get("currency", "USD")
-                )
-            else:
-              st.error(
-                  f"No se pudo consultar el estado de la cuenta: {resultado}"
-              )
+    # 2. Pestañas de contenido del bot para el socio
+    pestana_ socio_info, pestana_socio_radar = st.tabs([
+        "📚 Información y Guía del Bot",
+        "⚡ Radar de Liquidez XAU/USD",
+    ])
 
-      with pestana_socio_radar:
-        st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
-        if st.button("🔍 Escanear Zonas de Liquidez"):
+    with pestana_socio_info:
+      st.subheader("Bienvenido al Radar Liquidity Gold")
+      st.markdown("""
+            Este bot está diseñado para ayudarte a identificar las mejores zonas institucionales de liquidez en el mercado del oro (**XAU/USD**).
+            
+            * **¿Cómo empezar?** Puedes explorar el análisis de liquidez en la pestaña contigua.
+            * **Conexión opcional:** Si deseas consultar los balances y estados en tiempo real de tus operaciones, vincula tu cuenta MT5 utilizando el menú desplegable superior en el momento que consideres oportuno.
+            """)
+
+    with pestana_socio_radar:
+      st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
+      if cuenta_socio:
+        if st.button("🔍 Escanear Zonas de Liquidez", key="btn_radar_socio"):
           with st.spinner("Analizando cotizaciones del Oro..."):
             exito_p, simbolo, datos_precio = asyncio.run(
                 obtener_precio_oro(cuenta_socio["account_id"])
@@ -622,3 +617,9 @@ else:
               )
             else:
               st.error(f"No se pudo obtener el precio del oro: {datos_precio}")
+      else:
+        st.info(
+            "💡 Actualmente estás explorando el bot en modo libre. Para usar"
+            " el escáner de liquidez en vivo, vincula tu cuenta de MetaTrader 5"
+            " en la sección superior desplegable."
+        )
