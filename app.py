@@ -1,5 +1,6 @@
 import asyncio
 from cryptography.fernet import Fernet
+import sqlite3
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
@@ -28,8 +29,31 @@ else:
   MASTER_METAAPI_TOKEN = ""
 
 # ==========================================
-# 3. FUNCIONES ASÍNCRONAS DE METAAPI
+# 3. FUNCIONES ASÍNCRONAS DE METAAPI Y DB
 # ==========================================
+
+
+def inicializar_db():
+  """Resetea la tabla local para evitar conflictos de columnas antiguas."""
+  try:
+    conn = sqlite3.connect("trading_bot.db")
+    cursor = conn.cursor()
+    cursor.execute("DROP TABLE IF EXISTS socios")
+    cursor.execute("""
+            CREATE TABLE socios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                account_id TEXT NOT NULL
+            )
+        """)
+    conn.commit()
+    conn.close()
+  except Exception as e:
+    st.error(f"Error al inicializar la base de datos: {e}")
+
+
+# Inicializar la base de datos al arrancar
+inicializar_db()
 
 
 async def obtener_cuentas_metaapi():
@@ -37,7 +61,6 @@ async def obtener_cuentas_metaapi():
   try:
     metaapi = MetaApi(MASTER_METAAPI_TOKEN)
     accounts = await metaapi.metatrader_account_api.get_accounts()
-    # Filtramos solo las cuentas de tipo mt5 o cloud creadas por el bot
     lista_cuentas = []
     for acc in accounts:
       acc_info = acc.to_dict()
