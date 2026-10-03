@@ -242,6 +242,10 @@ if "user_name" not in st.session_state:
 if "is_admin" not in st.session_state:
   st.session_state.is_admin = 0
 
+# Capturar parámetros de la URL (ej. ?invite=GOLD-1234)
+params = st.query_params
+codigo_desde_url = params.get("invite", "")
+
 if not st.session_state.logged_in:
   st.title("📈 Radar Liquidity Gold Bot - Acceso")
   st.info(
@@ -284,9 +288,14 @@ if not st.session_state.logged_in:
   with tab_registro:
     st.subheader("Nuevo Registro con Invitación")
     reg_nombre = st.text_input("Escribe tu Nombre", key="reg_nombre")
+
+    # Si hay un código en la URL, se asigna por defecto al input
     reg_codigo = st.text_input(
-        "Código de Invitación (Ej: GOLD-XXXX)", key="reg_codigo"
+        "Código de Invitación (Ej: GOLD-XXXX)",
+        value=codigo_desde_url,
+        key="reg_codigo",
     )
+
     reg_pass1 = st.text_input(
         "Crea tu Clave de Acceso", type="password", key="reg_pass1"
     )
@@ -328,28 +337,26 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.header("🎫 Generar Invitación para Socio")
 
-    # Campo para configurar la URL base de tu aplicación (Streamlit Cloud o Local)
     url_base_bot = st.sidebar.text_input(
-        "URL de la página del bot",
+        "URL base de la app",
         value="https://tu-app.streamlit.app",
-        help=(
-            "Coloca aquí el enlace web público de tu bot en Streamlit Cloud."
-        ),
+        help="Coloca aquí la URL principal de tu app en Streamlit Cloud.",
     )
 
     if st.sidebar.button("✨ Generar Enlace y Código"):
       nuevo_cod = generar_nuevo_codigo()
       st.sidebar.success(f"¡Código creado: **{nuevo_cod}**!")
-      # Guardamos el último código generado en session_state para mostrarlo limpio abajo
       st.session_state.ultimo_codigo = nuevo_cod
 
-    # Si se acaba de generar o existe un código activo reciente, mostrar el enlace formateado
     if "ultimo_codigo" in st.session_state:
       c_reciente = st.session_state.ultimo_codigo
+      # Armamos el enlace con el parámetro ?invite=CODIGO para que se pegue solo
+      enlace_con_parametro = f"{url_base_bot.strip('/')}/?invite={c_reciente}"
+
       st.sidebar.markdown(
-          f"🔗 **Enlace de invitación para enviar:**\n\n"
-          f"¡Hola! Accede al Radar Liquidity Gold Bot aquí: {url_base_bot}\n"
-          f"Tu código de invitación único es: `{c_reciente}`"
+          f"🔗 **Enlace con autocompletado para enviar:**\n\n"
+          f"¡Hola! Regístrate en el bot haciendo clic aquí:\n{enlace_con_parametro}\n\n"
+          f"Tu código es: `{c_reciente}` (ya vendrá pegado automáticamente)."
       )
 
     st.sidebar.markdown("### 📋 Historial de Códigos")
@@ -359,7 +366,8 @@ else:
         estado = "🔴 Usado" if usado == 1 else "🟢 Disponible"
         st.sidebar.text(f"{cod} | {estado}")
         if usado == 0:
-          st.sidebar.code(f"{url_base_bot} (Código: {cod})", language="text")
+          link_historial = f"{url_base_bot.strip('/')}/?invite={cod}"
+          st.sidebar.code(link_historial, language="text")
 
     st.sidebar.markdown("---")
     st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
