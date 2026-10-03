@@ -16,28 +16,20 @@ st.set_page_config(
 # Estilos CSS inspirados en la tarjeta limpia y los colores corporativos de MetaTrader 5
 st.markdown("""
     <style>
-    .mt5-card-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
     .mt5-auth-card {
         background-color: #1e222d;
         border: 1px solid #2a2e39;
         border-radius: 12px;
-        padding: 30px;
+        padding: 20px;
         width: 100%;
-        max-width: 420px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
     .mt5-auth-card h3 {
         color: #ffffff;
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: 600;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         text-align: left;
     }
     </style>
@@ -552,7 +544,7 @@ else:
 
     st.markdown("---")
 
-    # 2. Configuración de MT5 en tarjeta vertical tipo "Create Account" con colores MT5 en la PARTE INFERIOR
+    # 2. Configuración de MT5 en tarjeta compacta vertical centrada en la PARTE INFERIOR
     if not cuenta_socio:
       st.warning(
           "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Si deseas"
@@ -561,14 +553,13 @@ else:
     else:
       st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
 
-    with st.expander(
-        "⚙️ Configuración y Conexión de mi Cuenta MT5 (Opcional)",
-        expanded=not bool(cuenta_socio),
-    ):
-      # Estructura centrada con columnas para simular la tarjeta vertical
-      col_left, col_card, col_right = st.columns([1, 2, 1])
+    col_e1, col_e_card, col_e3 = st.columns([1, 2, 1])
 
-      with col_card:
+    with col_e_card:
+      with st.expander(
+          "⚙️ Conectar Cuenta MT5 (Opcional)",
+          expanded=not bool(cuenta_socio),
+      ):
         st.markdown(
             """
                 <div class="mt5-auth-card">
