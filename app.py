@@ -1,5 +1,6 @@
 import asyncio
 from cryptography.fernet import Fernet
+import sqlite3
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
@@ -13,7 +14,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CONFIGURACIÓN DE SEGURIDAD Y CREDENCIALES
+# 2. CONFIGURACIÓN DE CREDENCIALES
 # ==========================================
 if "METAAPI_TOKEN" in st.secrets:
   MASTER_METAAPI_TOKEN = st.secrets["METAAPI_TOKEN"]
@@ -22,27 +23,63 @@ else:
   MASTER_METAAPI_TOKEN = ""
 
 # ==========================================
-# 3. FUNCIONES ASÍNCRONAS DE METAAPI
+# 3. GESTIÓN DE BASE DE DATOS SQLITE LOCAL
 # ==========================================
 
 
-async def obtener_cuentas_metaapi():
-  """Obtiene la lista de cuentas directamente desde MetaApi Cloud."""
+def inicializar_db():
+  """Crea la tabla de cuentas si no existe."""
   try:
-    metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-    accounts = await metaapi.metatrader_account_api.get_accounts()
-    lista_cuentas = []
-    for acc in accounts:
-      acc_info = acc.to_dict()
-      lista_cuentas.append({
-          "id": acc_info.get("id"),
-          "name": acc_info.get("name", "Sin Nombre"),
-          "login": acc_info.get("login"),
-          "server": acc_info.get("server"),
-      })
-    return True, lista_cuentas
+    conn = sqlite3.connect("trading_bot.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS socios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                login TEXT NOT NULL,
+                server TEXT NOT NULL
+            )
+        """)
+    conn.commit()
+    conn.close()
   except Exception as e:
-    return False, str(e)
+    st.error(f"Error al inicializar la base de datos: {e}")
+
+
+def guardar_socio_db(
+    nombre: str, account_id: str, login: str, server: str
+):
+  """Guarda una cuenta registrada en la base de datos local."""
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute(
+      """
+        INSERT INTO socios (nombre, account_id, login, server)
+        VALUES (?, ?, ?, ?)
+    """,
+      (nombre, account_id, login, server),
+  )
+  conn.commit()
+  conn.close()
+
+
+def obtener_socios_db():
+  """Recupera la lista de cuentas guardadas localmente."""
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute("SELECT id, nombre, account_id, login, server FROM socios")
+  filas = cursor.fetchall()
+  conn.close()
+  return filas
+
+
+# Inicializar base de datos
+inicializar_db()
+
+# ==========================================
+# 4. FUNCIONES ASÍNCRONAS DE METAAPI
+# ==========================================
 
 
 async def verificar_estado_cuenta(account_id: str):
@@ -69,7 +106,7 @@ async def verificar_estado_cuenta(account_id: str):
 
 
 # ==========================================
-# 4. INTERFAZ DE USUARIO (UI)
+# 5. INTERFAZ DE USUARIO (UI)
 # ==========================================
 st.title(
     "📈 Radar Liquidity Gold Bot - Onboarding Automático de Cuentas MT5"
@@ -140,6 +177,11 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
       exito, resultado = asyncio.run(registrar_en_metaapi())
 
       if exito:
+        account_id_generado = resultado
+        # Guardar localmente para verlo de inmediato en el desplegable
+        guardar_socio_db(
+            socio_nombre, account_id_generado, mt5_login, mt5_server
+        )
         st.sidebar.success(
             f"¡Cuenta para {socio_nombre} conectada y registrada con éxito! 🟢"
         )
@@ -149,31 +191,25 @@ if st.sidebar.button("Registrar y Conectar Cuenta"):
   else:
     st.sidebar.warning("Por favor completa todos los campos.")
 
-# Panel Principal: Monitoreo Directo y Diagnóstico
+# Panel Principal: Monitoreo de Cuentas Locales
 st.subheader("📊 Monitoreo de Cuentas Conectadas")
 
-with st.spinner("Sincronizando cuentas desde MetaApi Cloud..."):
-  exito_cuentas, lista_cuentas = asyncio.run(obtener_cuentas_metaapi())
-
-# Diagnóstico en pantalla para ver qué devuelve MetaApi
-with st.expander("🔍 Ver Diagnóstico de Conexión Cloud"):
-  st.write(f"Estado de conexión API: {exito_cuentas}")
-  st.write(f"Cuentas encontradas en bruto: {lista_cuentas}")
-
-if exito_cuentas and lista_cuentas:
-  nombres_cuentas = {
-      f"{acc['name']} (Login: {acc['login']})": acc for acc in lista_cuentas
+socios = obtener_socios_db()
+if socios:
+  nombres_socios = {
+      f"{socio[1]} (Login: {socio[3]})": socio for socio in socios
   }
-  cuenta_seleccionada_key = st.selectbox(
-      "Selecciona una Cuenta para Monitorear", list(nombres_cuentas.keys())
+  socio_seleccionado_key = st.selectbox(
+      "Selecciona un Socio para Monitorear", list(nombres_socios.keys())
   )
 
-  if cuenta_seleccionada_key:
-    cuenta_activa = nombres_cuentas[cuenta_seleccionada_key]
-    s_nombre = cuenta_activa["name"]
-    s_acc_id = cuenta_activa["id"]
+  if socio_seleccionado_key:
+    s_id, s_nombre, s_acc_id, s_login, s_server = nombres_socios[
+        socio_seleccionado_key
+    ]
     st.write(
-        f"**Socio/Cuenta:** {s_nombre} | **Account ID:** `{s_acc_id}`"
+        f"**Socio:** {s_nombre} | **Login:** `{s_login}` | **Account ID:**"
+        f" `{s_acc_id}`"
     )
 
     if st.button("Consultar Balance y Estado en Vivo"):
@@ -199,8 +235,8 @@ if exito_cuentas and lista_cuentas:
           )
 else:
   st.warning(
-      "No hay cuentas detectadas o la API devolvió una lista vacía. Revisa el"
-      " desplegable de diagnóstico arriba."
+      "No hay cuentas registradas todavía. Utiliza el panel lateral para"
+      " registrar tu primera cuenta."
   )
 
 # Métricas generales de mercado
