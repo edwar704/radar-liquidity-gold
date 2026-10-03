@@ -1,4 +1,5 @@
 import asyncio
+import random
 import sqlite3
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
@@ -21,8 +22,6 @@ else:
   st.error("⚠ Falta configurar METAAPI_TOKEN en los Secrets de Streamlit.")
   MASTER_METAAPI_TOKEN = ""
 
-# Código de invitación requerido para nuevos registros (cámbialo en secrets si lo deseas)
-CODIGO_INVITACION_SECRET = st.secrets.get("INVITATION_CODE", "GOLD2026")
 ADMIN_PASSWORD_SECRET = st.secrets.get("ADMIN_PASSWORD", "Admin123*")
 
 
@@ -33,7 +32,7 @@ def inicializar_db():
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
-    # Tabla de usuarios registrados con su propia clave
+    # Tabla de usuarios registrados
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +51,15 @@ def inicializar_db():
                 server TEXT NOT NULL
             )
         """)
+    # Tabla para almacenar códigos de invitación generados por el admin
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS invitaciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT NOT NULL UNIQUE,
+                usado INTEGER DEFAULT 0,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     conn.commit()
     conn.close()
   except Exception as e:
@@ -61,19 +69,66 @@ def inicializar_db():
 inicializar_db()
 
 
-def registrar_usuario_db(nombre, password):
+def generar_nuevo_codigo():
+  """Genera un código aleatorio único y lo guarda en la base de datos."""
+  while True:
+    numero_aleatorio = random.randint(1000, 9999)
+    codigo = f"GOLD-{numero_aleatorio}"
+    try:
+      conn = sqlite3.connect("trading_bot.db")
+      cursor = conn.cursor()
+      cursor.execute(
+          "INSERT INTO invitaciones (codigo, usado) VALUES (?, 0)", (codigo,)
+      )
+      conn.commit()
+      conn.close()
+      return codigo
+    except sqlite3.IntegrityError:
+      # Si el código ya existe por coincidencia, se repite el ciclo
+      continue
+
+
+def obtener_invitaciones():
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute(
+      "SELECT codigo, usado, fecha_creacion FROM invitaciones ORDER BY id DESC"
+  )
+  filas = cursor.fetchall()
+  conn.close()
+  return filas
+
+
+def registrar_usuario_db(nombre, password, codigo_usado):
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
+
+    # Verificar que el código exista y no haya sido usado (o permitir reutilizarlo si prefieres, aquí lo marcamos como usado)
+    cursor.execute(
+        "SELECT id, usado FROM invitaciones WHERE codigo = ?", (codigo_usado,)
+    )
+    inv = cursor.fetchone()
+
+    if not inv:
+      conn.close()
+      return False, "El código de invitación no existe."
+
+    # Registrar usuario
     cursor.execute(
         "INSERT INTO usuarios (nombre, password, es_admin) VALUES (?, ?, 0)",
         (nombre, password),
     )
+    # Marcar código como usado
+    cursor.execute(
+        "UPDATE invitaciones SET usado = 1 WHERE codigo = ?", (codigo_usado,)
+    )
+
     conn.commit()
     conn.close()
-    return True
+    return True, "Registro exitoso"
   except Exception as e:
-    return False
+    return False, f"Este nombre de usuario ya está registrado: {e}"
 
 
 def verificar_usuario_db(nombre, password):
@@ -194,8 +249,8 @@ if "is_admin" not in st.session_state:
 if not st.session_state.logged_in:
   st.title("📈 Radar Liquidity Gold Bot - Acceso")
   st.info(
-      "🔒 Inicia sesión con tu clave o regístrate por primera vez con tu nombre"
-      " y el código de invitación."
+      "🔒 Inicia sesión con tu clave o regístrate con el código de invitación"
+      " que te proporcionó el administrador."
   )
 
   tab_login, tab_registro = st.tabs(
@@ -210,7 +265,6 @@ if not st.session_state.logged_in:
     )
 
     if st.button("Entrar al Bot"):
-      # Acceso maestro de Administrador
       if (
           login_nombre.lower() == "admin"
           and login_pass == ADMIN_PASSWORD_SECRET
@@ -232,10 +286,10 @@ if not st.session_state.logged_in:
           st.error("Nombre de usuario o clave incorrectos.")
 
   with tab_registro:
-    st.subheader("Nuevo Registro")
+    st.subheader("Nuevo Registro con Invitación")
     reg_nombre = st.text_input("Escribe tu Nombre", key="reg_nombre")
     reg_codigo = st.text_input(
-        "Código de Invitación", type="password", key="reg_codigo"
+        "Código de Invitación (Ej: GOLD-XXXX)", key="reg_codigo"
     )
     reg_pass1 = st.text_input(
         "Crea tu Clave de Acceso", type="password", key="reg_pass1"
@@ -247,19 +301,17 @@ if not st.session_state.logged_in:
     if st.button("Registrar y Generar Clave"):
       if not reg_nombre or not reg_codigo or not reg_pass1:
         st.warning("Por favor completa todos los campos.")
-      elif reg_codigo != CODIGO_INVITACION_SECRET:
-        st.error("❌ Código de invitación incorrecto.")
       elif reg_pass1 != reg_pass2:
         st.error("❌ Las claves de acceso no coinciden.")
       else:
-        exito = registrar_usuario_db(reg_nombre, reg_pass1)
+        exito, mensaje = registrar_usuario_db(reg_nombre, reg_pass1, reg_codigo)
         if exito:
           st.success(
               "¡Registro exitoso! 🟢 Ahora ve a la pestaña 'Iniciar Sesión' e"
               " ingresa con tu nombre y la clave que acabas de crear."
           )
         else:
-          st.error("❌ Este nombre ya está registrado. Elige otro.")
+          st.error(f"❌ {mensaje}")
 
 else:
   # ==========================================
@@ -277,6 +329,26 @@ else:
       st.session_state.is_admin == 1
       or st.session_state.user_name == "Administrador"
   ):
+    st.sidebar.markdown("---")
+    st.sidebar.header("🎫 Generar Invitación para Socio")
+
+    # Obtener la URL actual de la app de Streamlit si está disponible o base genérica
+    url_base = st.get_option("server.baseUrlPath") or ""
+
+    if st.sidebar.button("✨ Generar Nuevo Enlace y Código"):
+      nuevo_cod = generar_nuevo_codigo()
+      st.sidebar.success(f"¡Código creado: **{nuevo_cod}**!")
+
+    # Mostrar lista de códigos generados recientes en la barra lateral para copiar rápido
+    st.sidebar.markdown("### 📋 Códigos Activos")
+    invitaciones_guardadas = obtener_invitaciones()
+    if invitaciones_guardadas:
+      for cod, usado, fecha in invitaciones_guardadas[:5]:  # Mostrar los últimos 5
+        estado = "🔴 Usado" if usado == 1 else "🟢 Disponible"
+        st.sidebar.text(f"{cod} | {estado}")
+        if usado == 0:
+          st.sidebar.code(f"Código: {cod}", language="text")
+
     st.sidebar.markdown("---")
     st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
     socio_nombre = st.sidebar.text_input("Nombre de Socio")
