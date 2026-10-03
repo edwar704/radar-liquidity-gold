@@ -13,27 +13,32 @@ st.set_page_config(
     layout="wide",
 )
 
-# Inyección de estilos CSS inspirados en la interfaz de MetaTrader 5 (Tonos oscuros, azulados y acentos limpios)
+# Estilos CSS inspirados en la tarjeta limpia y los colores corporativos de MetaTrader 5
 st.markdown("""
     <style>
-    .mt5-card {
+    .mt5-card-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    .mt5-auth-card {
         background-color: #1e222d;
         border: 1px solid #2a2e39;
-        border-radius: 8px;
-        padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        margin-top: 15px;
-        margin-bottom: 15px;
+        border-radius: 12px;
+        padding: 30px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
-    .mt5-card h3 {
-        color: #008eff;
-        font-family: sans-serif;
-        font-size: 1.1rem;
-        margin-bottom: 10px;
-    }
-    .mt5-card p {
-        color: #d1d4dc;
-        font-size: 0.9rem;
+    .mt5-auth-card h3 {
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        text-align: left;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -57,7 +62,6 @@ def inicializar_db():
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
-    # Tabla de usuarios registrados
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +70,6 @@ def inicializar_db():
                 es_admin INTEGER DEFAULT 0
             )
         """)
-    # Tabla para relacionar socios y sus cuentas de MetaApi
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS relacion_socios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +79,6 @@ def inicializar_db():
                 server TEXT NOT NULL
             )
         """)
-    # Tabla para almacenar códigos de invitación generados por el admin
     cursor.execute("""
             CREATE TABLE IF NOT EXISTS invitaciones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +97,6 @@ inicializar_db()
 
 
 def generar_nuevo_codigo():
-  """Genera un código aleatorio único y lo guarda en la base de datos."""
   while True:
     numero_aleatorio = random.randint(1000, 9999)
     codigo = f"GOLD-{numero_aleatorio}"
@@ -116,20 +117,16 @@ def registrar_usuario_db(nombre, password, codigo_usado):
   try:
     conn = sqlite3.connect("trading_bot.db")
     cursor = conn.cursor()
-
     cursor.execute(
         "SELECT id, usado FROM invitaciones WHERE codigo = ?", (codigo_usado,)
     )
     inv = cursor.fetchone()
-
     if not inv:
       conn.close()
       return False, "El código de invitación no existe."
-
     if inv[1] == 1:
       conn.close()
       return False, "Este código de invitación ya fue utilizado."
-
     cursor.execute(
         "INSERT INTO usuarios (nombre, password, es_admin) VALUES (?, ?, 0)",
         (nombre, password),
@@ -137,7 +134,6 @@ def registrar_usuario_db(nombre, password, codigo_usado):
     cursor.execute(
         "UPDATE invitaciones SET usado = 1 WHERE codigo = ?", (codigo_usado,)
     )
-
     conn.commit()
     conn.close()
     return True, "Registro exitoso"
@@ -364,18 +360,16 @@ else:
     st.rerun()
 
   # ==========================================
-  # PANEL LATERAL DE ADMINISTRADOR (Enlace fijo)
+  # PANEL LATERAL DE ADMINISTRADOR
   # ==========================================
   if is_admin_user:
     st.sidebar.markdown("---")
     st.sidebar.header("🎫 Generador de Invitaciones")
-
     url_base_bot = "https://radar-liquidity-gold-bot.streamlit.app"
 
     if st.sidebar.button("✨ Generar Nuevo Código"):
       nuevo_cod = generar_nuevo_codigo()
       enlace_con_parametro = f"{url_base_bot.strip('/')}/?invite={nuevo_cod}"
-
       st.sidebar.success("¡Código generado con éxito!")
       st.sidebar.markdown(
           "Copia este mensaje y envíaselo a tu socio de forma directa:"
@@ -390,7 +384,6 @@ else:
   # INTERFAZ PRINCIPAL SEGÚN EL ROL
   # ==========================================
   if is_admin_user:
-    # VISTA DE ADMINISTRADOR
     st.title("📈 Panel de Control - Administrador")
 
     pestana_admin_socios, pestana_admin_liquidez = st.tabs([
@@ -492,12 +485,11 @@ else:
         )
 
   else:
-    # VISTA DE SOCIO / USUARIO NORMAL (Nuevo flujo no invasivo)
+    # VISTA DE SOCIO / USUARIO NORMAL
     st.title("📈 Panel de Socio - Radar Liquidity Gold Bot")
 
     cuenta_socio = obtener_cuenta_socio(st.session_state.user_name)
 
-    # 1. Pestañas principales de contenido del bot para el socio (Arriba)
     pestana_socio_info, pestana_socio_radar = st.tabs([
         "📚 Información y Guía del Bot",
         "⚡ Radar de Liquidez XAU/USD",
@@ -560,7 +552,7 @@ else:
 
     st.markdown("---")
 
-    # 2. Configuración de MT5 en tarjeta compacta vertical (Estilo MT5) en la PARTE INFERIOR
+    # 2. Configuración de MT5 en tarjeta vertical tipo "Create Account" con colores MT5 en la PARTE INFERIOR
     if not cuenta_socio:
       st.warning(
           "⚠ **Aviso:** Aún no tienes una cuenta MT5 vinculada. Si deseas"
@@ -573,96 +565,102 @@ else:
         "⚙️ Configuración y Conexión de mi Cuenta MT5 (Opcional)",
         expanded=not bool(cuenta_socio),
     ):
-      # Contenedor con diseño compacto y colores inspirados en MetaTrader 5
-      st.markdown("""
-            <div class="mt5-card">
-                <h3>🎛 Panel de Conexión Segura MetaTrader 5</h3>
-                <p>Ingresa tus credenciales de acceso facilitadas por tu bróker para sincronizar el bot con tu cuenta MT5 en la nube.</p>
-            </div>
-            """, unsafe_allow_html=True)
+      # Estructura centrada con columnas para simular la tarjeta vertical
+      col_left, col_card, col_right = st.columns([1, 2, 1])
 
-      if cuenta_socio:
-        st.caption(
-            f"Cuenta Actual Vinculada → Login: `{cuenta_socio['login']}` |"
-            f" Servidor: `{cuenta_socio['server']}`"
+      with col_card:
+        st.markdown(
+            """
+                <div class="mt5-auth-card">
+                    <h3>Connect MT5 Account</h3>
+                </div>
+                """,
+            unsafe_allow_html=True,
         )
 
-      # Formulario vertical y compacto
-      mt5_login = st.text_input(
-          "Número de Cuenta (Login)", key="exp_login_inf"
-      )
-      mt5_password = st.text_input(
-          "Contraseña de Trading", type="password", key="exp_pass_inf"
-      )
+        if cuenta_socio:
+          st.caption(
+              f"Cuenta Actual Vinculada → Login: `{cuenta_socio['login']}` |"
+              f" Servidor: `{cuenta_socio['server']}`"
+          )
 
-      opciones_brokers = [
-          "Selecciona servidor...",
-          "MetaQuotes-Demo",
-          "VantageInternational-Live 01",
-          "VantageInternational-Live 02",
-          "VantageInternational-Live 03",
-          "VantageInternational-Live 04",
-          "VantageInternational-Demo",
-          "Exness-Real11",
-          "Exness-Real12",
-          "Exness-Real13",
-          "Exness-Trial",
-          "RoboForex-Pro",
-          "RoboForex-ECN",
-          "RoboForex-Demo",
-          "ICMarketsSC-Live 01",
-          "ICMarketsSC-Live 02",
-          "ICMarketsSC-Demo",
-          "XMGlobal-MT5 18",
-          "Weltrade",
-          "Otro (Escribir manualmente)",
-      ]
-
-      broker_seleccionado = st.selectbox(
-          "Servidor del Bróker", opciones_brokers, key="exp_broker_inf"
-      )
-
-      if broker_seleccionado == "Otro (Escribir manualmente)":
-        mt5_server = st.text_input(
-            "Escribe el servidor exacto del bróker", key="exp_otro_serv_inf"
+        mt5_login = st.text_input(
+            "Número de Cuenta (Login)", key="card_login_inf"
         )
-      elif broker_seleccionado != "Selecciona servidor...":
-        mt5_server = broker_seleccionado
-      else:
-        mt5_server = ""
+        mt5_password = st.text_input(
+            "Contraseña de Trading", type="password", key="card_pass_inf"
+        )
 
-      st.markdown("<br>", unsafe_allow_html=True)
-      if st.button("Guardar y Conectar Cuenta MT5", key="btn_guardar_inf"):
-        if mt5_login and mt5_password and mt5_server:
-          with st.spinner(
-              "Conectando tu cuenta de forma segura a MetaApi Cloud..."
-          ):
+        opciones_brokers = [
+            "Selecciona servidor...",
+            "MetaQuotes-Demo",
+            "VantageInternational-Live 01",
+            "VantageInternational-Live 02",
+            "VantageInternational-Live 03",
+            "VantageInternational-Live 04",
+            "VantageInternational-Demo",
+            "Exness-Real11",
+            "Exness-Real12",
+            "Exness-Real13",
+            "Exness-Trial",
+            "RoboForex-Pro",
+            "RoboForex-ECN",
+            "RoboForex-Demo",
+            "ICMarketsSC-Live 01",
+            "ICMarketsSC-Live 02",
+            "ICMarketsSC-Demo",
+            "XMGlobal-MT5 18",
+            "Weltrade",
+            "Otro (Escribir manualmente)",
+        ]
 
-            async def registrar_socio_metaapi():
-              try:
-                metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-                account = await metaapi.metatrader_account_api.create_account({
-                    "name": f"Socio - {st.session_state.user_name}",
-                    "type": "cloud",
-                    "login": mt5_login,
-                    "password": mt5_password,
-                    "server": mt5_server,
-                    "platform": "mt5",
-                    "magic": 123456,
-                })
-                return True, account.id
-              except Exception as ex:
-                return False, str(ex)
+        broker_seleccionado = st.selectbox(
+            "Servidor del Bróker", opciones_brokers, key="card_broker_inf"
+        )
 
-            exito, resultado = asyncio.run(registrar_socio_metaapi())
-
-            if exito:
-              guardar_relacion_socio(
-                  st.session_state.user_name, resultado, mt5_login, mt5_server
-              )
-              st.success("¡Cuenta conectada y vinculada con éxito! 🟢")
-              st.rerun()
-            else:
-              st.error(f"Error al conectar con el bróker: {resultado}")
+        if broker_seleccionado == "Otro (Escribir manualmente)":
+          mt5_server = st.text_input(
+              "Escribe el servidor exacto del bróker", key="card_otro_serv_inf"
+          )
+        elif broker_seleccionado != "Selecciona servidor...":
+          mt5_server = broker_seleccionado
         else:
-          st.warning("Por favor completa todos los campos de la cuenta.")
+          mt5_server = ""
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button(
+            "Conectar cuenta MT5", key="btn_card_guardar_inf", use_container_width=True
+        ):
+          if mt5_login and mt5_password and mt5_server:
+            with st.spinner(
+                "Conectando tu cuenta de forma segura a MetaApi Cloud..."
+            ):
+
+              async def registrar_socio_metaapi():
+                try:
+                  metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+                  account = await metaapi.metatrader_account_api.create_account({
+                      "name": f"Socio - {st.session_state.user_name}",
+                      "type": "cloud",
+                      "login": mt5_login,
+                      "password": mt5_password,
+                      "server": mt5_server,
+                      "platform": "mt5",
+                      "magic": 123456,
+                  })
+                  return True, account.id
+                except Exception as ex:
+                  return False, str(ex)
+
+              exito, resultado = asyncio.run(registrar_socio_metaapi())
+
+              if exito:
+                guardar_relacion_socio(
+                    st.session_state.user_name, resultado, mt5_login, mt5_server
+                )
+                st.success("¡Cuenta conectada y vinculada con éxito! 🟢")
+                st.rerun()
+              else:
+                st.error(f"Error al conectar con el bróker: {resultado}")
+          else:
+            st.warning("Por favor completa todos los campos de la cuenta.")
