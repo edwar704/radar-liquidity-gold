@@ -1,2 +1,4 @@
-cryptography
 streamlit
+cryptography
+metaapi-cloud-sdk
+requests
