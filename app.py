@@ -2,6 +2,7 @@ import asyncio
 import random
 import sqlite3
 import pandas as pd
+import plotly.graph_objects as go
 from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
@@ -575,45 +576,131 @@ else:
 
     # ==========================================
     # DISTRIBUCIÓN DE DOS COLUMNAS PRINCIPALES
-    # IZQUIERDA: Gráfico de Mercado Real (Gráfico nativo interactivo)
+    # IZQUIERDA: Gráfico de Velas Japonesas Reales (Plotly Candlestick)
     # DERECHA: Tarjeta Flotante Compacta de MT5
     # ==========================================
     col_izq_grafico, col_der_config = st.columns([1.4, 1])
 
     with col_izq_grafico:
-      st.markdown("### 📊 XAU/USD • Gráfico de Estructura y Zonas")
-      st.caption(
-          "Visualización en vivo de la acción de precio institucional (SMC)."
+      st.markdown("### 📊 XAU/USD • Velas y Zonas de Liquidez SMC")
+
+      # Creación de datos de Velas Japonesas (Apertura, Máximo, Mínimo, Cierre)
+      df_velas = pd.DataFrame({
+          "Tiempo": [
+              "10:00",
+              "10:15",
+              "10:30",
+              "10:45",
+              "11:00",
+              "11:15",
+              "11:30",
+              "11:45",
+              "12:00",
+              "12:15",
+          ],
+          "Open": [
+              2640.0,
+              2642.5,
+              2641.0,
+              2643.8,
+              2645.0,
+              2642.0,
+              2646.5,
+              2648.0,
+              2651.0,
+              2649.5,
+          ],
+          "High": [
+              2643.0,
+              2645.0,
+              2643.5,
+              2646.0,
+              2647.2,
+              2647.5,
+              2649.0,
+              2652.5,
+              2653.0,
+              2654.2,
+          ],
+          "Low": [
+              2638.5,
+              2641.0,
+              2639.2,
+              2642.0,
+              2642.5,
+              2641.0,
+              2644.0,
+              2647.0,
+              2648.5,
+              2648.0,
+          ],
+          "Close": [
+              2642.5,
+              2641.0,
+              2643.8,
+              2645.0,
+              2642.0,
+              2646.5,
+              2648.0,
+              2651.0,
+              2649.5,
+              2653.8,
+          ],
+      })
+
+      # Configuración del gráfico de velas institucionales
+      fig = go.Figure(
+          data=[
+              go.Candlestick(
+                  x=df_velas["Tiempo"],
+                  open=df_velas["Open"],
+                  high=df_velas["High"],
+                  low=df_velas["Low"],
+                  close=df_velas["Close"],
+                  increasing_line_color="#00ff80",  # Velas Verdes
+                  decreasing_line_color="#ff4d4d",  # Velas Rojas
+                  increasing_fillcolor="#00ff80",
+                  decreasing_fillcolor="#ff4d4d",
+              )
+          ]
       )
 
-      # Generación de datos simulados de tendencia de oro para renderizar el gráfico interactivo nativo
-      chart_data = pd.DataFrame(
-          {
-              "Precio XAU/USD": [
-                  2640.5,
-                  2642.1,
-                  2641.0,
-                  2644.8,
-                  2643.5,
-                  2646.0,
-                  2649.2,
-                  2648.0,
-                  2651.5,
-                  2653.0,
-              ]
-          }
+      # Líneas de zonas de liquidez institucionales
+      fig.add_hline(
+          y=2653.0,
+          line_dash="dash",
+          line_color="#ff4d4d",
+          annotation_text="BUY STOPS (Resistencia)",
+          annotation_position="top right",
+          annotation_font_color="#ff4d4d",
       )
-      st.line_chart(chart_data, color="#00ff80", height=240)
 
-      st.info(
-          "🟢 **Zonas Clave Detectadas:**\n"
-          "- **Resistencia (Buy Stops):** `$2,653.00`\n"
-          "- **Soporte (Sell Stops):** `$2,640.50`"
+      fig.add_hline(
+          y=2639.0,
+          line_dash="dash",
+          line_color="#00ff80",
+          annotation_text="SELL STOPS (Soporte)",
+          annotation_position="bottom right",
+          annotation_font_color="#00ff80",
       )
+
+      # Estilo profesional oscuro tipo MetaTrader / TradingView
+      fig.update_layout(
+          paper_bgcolor="#131722",
+          plot_bgcolor="#131722",
+          font=dict(color="#d1d4dc", size=11),
+          margin=dict(l=10, r=10, t=30, b=10),
+          height=260,
+          xaxis=dict(showgrid=True, gridcolor="#2a2e39"),
+          yaxis=dict(showgrid=True, gridcolor="#2a2e39"),
+          showlegend=False,
+      )
+
+      st.plotly_chart(fig, use_container_width=True)
 
     with col_der_config:
       with st.expander(
-          "⚙️ Configurar MT5",
+          "⚙️️ Configurar MT5",
           expanded=not bool(cuenta_socio),
       ):
         # Tarjeta flotante compacta con insignia MT5 a la derecha
@@ -712,4 +799,4 @@ else:
               else:
                 st.error(f"Error al conectar con el bróker: {resultado}")
           else:
-            st.warning("Por favor completa todos los campos de la cuenta.")
+            st.warning("Por forma completa todos los campos de la cuenta.")
