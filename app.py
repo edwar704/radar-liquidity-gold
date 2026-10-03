@@ -87,17 +87,6 @@ def generar_nuevo_codigo():
       continue
 
 
-def obtener_invitaciones():
-  conn = sqlite3.connect("trading_bot.db")
-  cursor = conn.cursor()
-  cursor.execute(
-      "SELECT codigo, usado, fecha_creacion FROM invitaciones ORDER BY id DESC"
-  )
-  filas = cursor.fetchall()
-  conn.close()
-  return filas
-
-
 def registrar_usuario_db(nombre, password, codigo_usado):
   try:
     conn = sqlite3.connect("trading_bot.db")
@@ -111,6 +100,10 @@ def registrar_usuario_db(nombre, password, codigo_usado):
     if not inv:
       conn.close()
       return False, "El código de invitación no existe."
+
+    if inv[1] == 1:
+      conn.close()
+      return False, "Este código de invitación ya fue utilizado."
 
     cursor.execute(
         "INSERT INTO usuarios (nombre, password, es_admin) VALUES (?, ?, 0)",
@@ -179,6 +172,21 @@ def obtener_relacion_socios():
   }
 
 
+def obtener_cuenta_socio(nombre_socio: str):
+  conn = sqlite3.connect("trading_bot.db")
+  cursor = conn.cursor()
+  cursor.execute(
+      "SELECT account_id, login, server FROM relacion_socios WHERE"
+      " nombre_socio = ?",
+      (nombre_socio,),
+  )
+  fila = cursor.fetchone()
+  conn.close()
+  if fila:
+    return {"account_id": fila[0], "login": fila[1], "server": fila[2]}
+  return None
+
+
 # ==========================================
 # 4. FUNCIONES ASÍNCRONAS DE METAAPI
 # ==========================================
@@ -242,14 +250,13 @@ if "user_name" not in st.session_state:
 if "is_admin" not in st.session_state:
   st.session_state.is_admin = 0
 
-# Capturar parámetros de la URL (ej. ?invite=GOLD-1234)
 params = st.query_params
 codigo_desde_url = params.get("invite", "")
 
 if not st.session_state.logged_in:
   st.title("📈 Radar Liquidity Gold Bot - Acceso")
   st.info(
-      "🔒 Inicia sesión con tu clave o regístrate con el código de invitación"
+      "🔒 Inicia sesión con tu cuenta o regístrate con el código de invitación"
       " que te proporcionó el administrador."
   )
 
@@ -288,14 +295,11 @@ if not st.session_state.logged_in:
   with tab_registro:
     st.subheader("Nuevo Registro con Invitación")
     reg_nombre = st.text_input("Escribe tu Nombre", key="reg_nombre")
-
-    # Si hay un código en la URL, se asigna por defecto al input
     reg_codigo = st.text_input(
         "Código de Invitación (Ej: GOLD-XXXX)",
         value=codigo_desde_url,
         key="reg_codigo",
     )
-
     reg_pass1 = st.text_input(
         "Crea tu Clave de Acceso", type="password", key="reg_pass1"
     )
@@ -303,7 +307,7 @@ if not st.session_state.logged_in:
         "Confirma tu Clave de Acceso", type="password", key="reg_pass2"
     )
 
-    if st.button("Registrar y Generar Clave"):
+    if st.button("Registrar y Generar Cuenta"):
       if not reg_nombre or not reg_codigo or not reg_pass1:
         st.warning("Por favor completa todos los campos.")
       elif reg_pass1 != reg_pass2:
@@ -313,7 +317,7 @@ if not st.session_state.logged_in:
         if exito:
           st.success(
               "¡Registro exitoso! 🟢 Ahora ve a la pestaña 'Iniciar Sesión' e"
-              " ingresa con tu nombre y la clave que acabas de crear."
+              " ingresa con tu nombre y la clave que creaste."
           )
         else:
           st.error(f"❌ {mensaje}")
@@ -322,6 +326,11 @@ else:
   # ==========================================
   # 6. APLICACIÓN PRINCIPAL (USUARIO LOGueado)
   # ==========================================
+  is_admin_user = (
+      st.session_state.is_admin == 1
+      or st.session_state.user_name == "Administrador"
+  )
+
   st.sidebar.title(f"👤 Hola, {st.session_state.user_name}")
   if st.sidebar.button("Cerrar Sesión"):
     st.session_state.logged_in = False
@@ -329,139 +338,49 @@ else:
     st.session_state.is_admin = 0
     st.rerun()
 
-  # Panel de administración lateral (Solo visible para el admin)
-  if (
-      st.session_state.is_admin == 1
-      or st.session_state.user_name == "Administrador"
-  ):
+  # ==========================================
+  # PANEL LATERAL DE ADMINISTRADOR (Sin historial ni links guardados)
+  # ==========================================
+  if is_admin_user:
     st.sidebar.markdown("---")
-    st.sidebar.header("🎫 Generar Invitación para Socio")
+    st.sidebar.header("🎫 Generador de Invitaciones")
 
     url_base_bot = st.sidebar.text_input(
         "URL base de la app",
         value="https://tu-app.streamlit.app",
-        help="Coloca aquí la URL principal de tu app en Streamlit Cloud.",
+        help="URL principal de tu app en Streamlit Cloud.",
     )
 
-    if st.sidebar.button("✨ Generar Enlace y Código"):
+    if st.sidebar.button("✨ Generar Nuevo Código"):
       nuevo_cod = generar_nuevo_codigo()
-      st.sidebar.success(f"¡Código creado: **{nuevo_cod}**!")
-      st.session_state.ultimo_codigo = nuevo_cod
+      enlace_con_parametro = f"{url_base_bot.strip('/')}/?invite={nuevo_cod}"
 
-    if "ultimo_codigo" in st.session_state:
-      c_reciente = st.session_state.ultimo_codigo
-      # Armamos el enlace con el parámetro ?invite=CODIGO para que se pegue solo
-      enlace_con_parametro = f"{url_base_bot.strip('/')}/?invite={c_reciente}"
-
+      st.sidebar.success("¡Código generado con éxito!")
       st.sidebar.markdown(
-          f"🔗 **Enlace con autocompletado para enviar:**\n\n"
-          f"¡Hola! Regístrate en el bot haciendo clic aquí:\n{enlace_con_parametro}\n\n"
-          f"Tu código es: `{c_reciente}` (ya vendrá pegado automáticamente)."
+          "Copia este mensaje y envíaselo a tu socio de forma directa:"
+      )
+      st.sidebar.code(
+          f"¡Hola! Regístrate en el bot haciendo clic aquí:\n{enlace_con_parametro}\n\nTu"
+          f" código de invitación es: {nuevo_cod}",
+          language="text",
       )
 
-    st.sidebar.markdown("### 📋 Historial de Códigos")
-    invitaciones_guardadas = obtener_invitaciones()
-    if invitaciones_guardadas:
-      for cod, usado, fecha in invitaciones_guardadas[:5]:
-        estado = "🔴 Usado" if usado == 1 else "🟢 Disponible"
-        st.sidebar.text(f"{cod} | {estado}")
-        if usado == 0:
-          link_historial = f"{url_base_bot.strip('/')}/?invite={cod}"
-          st.sidebar.code(link_historial, language="text")
+  # ==========================================
+  # INTERFAZ PRINCIPAL SEGÚN EL ROL
+  # ==========================================
+  if is_admin_user:
+    # VISTA DE ADMINISTRADOR
+    st.title("📈 Panel de Control - Administrador")
 
-    st.sidebar.markdown("---")
-    st.sidebar.header("🚀 Conectar Nueva Cuenta MT5")
-    socio_nombre = st.sidebar.text_input("Nombre de Socio")
-    mt5_login = st.sidebar.text_input("Número de Cuenta (Login)")
-    mt5_password = st.sidebar.text_input(
-        "Contraseña de Trading", type="password"
-    )
+    pestana_admin_socios, pestana_admin_liquidez = st.tabs([
+        "📊 Monitoreo de Cuentas de Socios",
+        "⚡ Radar de Liquidez XAU/USD",
+    ])
 
-    opciones_brokers = [
-        "Selecciona o escribe...",
-        "MetaQuotes-Demo",
-        "VantageInternational-Live 01",
-        "VantageInternational-Live 02",
-        "VantageInternational-Live 03",
-        "VantageInternational-Live 04",
-        "VantageInternational-Demo",
-        "Exness-Real11",
-        "Exness-Real12",
-        "Exness-Real13",
-        "Exness-Trial",
-        "RoboForex-Pro",
-        "RoboForex-ECN",
-        "RoboForex-Demo",
-        "ICMarketsSC-Live 01",
-        "ICMarketsSC-Live 02",
-        "ICMarketsSC-Demo",
-        "Otro (Escribir manualmente)",
-    ]
+    socios_dict = obtener_relacion_socios()
 
-    broker_seleccionado = st.sidebar.selectbox(
-        "Servidor del Bróker", opciones_brokers
-    )
-
-    if broker_seleccionado == "Otro (Escribir manualmente)":
-      mt5_server = st.sidebar.text_input("Escribe el servidor exacto del bróker")
-    elif broker_seleccionado != "Selecciona o escribe...":
-      mt5_server = broker_seleccionado
-    else:
-      mt5_server = ""
-
-    if st.sidebar.button("Registrar y Conectar Cuenta"):
-      if socio_nombre and mt5_login and mt5_password and mt5_server:
-        with st.spinner("Creando cuenta automáticamente en MetaApi Cloud..."):
-
-          async def registrar_en_metaapi():
-            try:
-              metaapi = MetaApi(MASTER_METAAPI_TOKEN)
-              account = await metaapi.metatrader_account_api.create_account({
-                  "name": f"Socio - {socio_nombre}",
-                  "type": "cloud",
-                  "login": mt5_login,
-                  "password": mt5_password,
-                  "server": mt5_server,
-                  "platform": "mt5",
-                  "magic": 123456,
-              })
-              return True, account.id
-            except Exception as ex:
-              return False, str(ex)
-
-          exito, resultado = asyncio.run(registrar_en_metaapi())
-
-          if exito:
-            account_id_generado = resultado
-            guardar_relacion_socio(
-                socio_nombre, account_id_generado, mt5_login, mt5_server
-            )
-            st.sidebar.success(
-                f"¡Cuenta para {socio_nombre} conectada con éxito! 🟢"
-            )
-            st.rerun()
-          else:
-            st.sidebar.error(f"Error al conectar con el bróker: {resultado}")
-      else:
-        st.sidebar.warning("Por favor completa todos los campos.")
-
-  # Panel Principal
-  st.title(
-      "📈 Radar Liquidity Gold Bot - Panel de Control Institucional"
-  )
-
-  pestana_monitoreo, pestana_liquidez = st.tabs([
-      "📊 Monitoreo de Socios",
-      "⚡ Radar de Liquidez XAU/USD",
-  ])
-
-  with pestana_monitoreo:
-    st.subheader("Relación de Socios y Cuentas Conectadas")
-    if (
-        st.session_state.is_admin == 1
-        or st.session_state.user_name == "Administrador"
-    ):
-      socios_dict = obtener_relacion_socios()
+    with pestana_admin_socios:
+      st.subheader("Supervisión de Cuentas Conectadas")
       if socios_dict:
         opciones_select = {
             f"Socio: {info['nombre']} | Login: {info['login']} ({info['server']})"
@@ -508,75 +427,204 @@ else:
                     f"No se pudo consultar la cuenta. Detalle: {resultado}"
                 )
       else:
-        st.warning(
-            "No hay socios registrados todavía. Usa el panel lateral para"
-            " registrar la primera cuenta."
+        st.info(
+            "No hay cuentas de socios registradas todavía. Los socios deben"
+            " registrar su cuenta al iniciar sesión."
         )
-    else:
-      st.info(
-          "🔒 Sección exclusiva para el Administrador. Las cuentas de los socios"
-          " solo pueden ser visualizadas por el administrador."
-      )
 
-  with pestana_liquidez:
-    st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
-    st.write(
-        "Escaneo de mercado en tiempo real para detección de barridos de"
-        " liquidez y zonas de alta probabilidad en el Oro."
-    )
-    socios_dict = obtener_relacion_socios()
-    if socios_dict:
-      cuenta_referencia = list(socios_dict.values())[0]["account_id"]
-      if st.button("🔍 Escanear Zonas de Liquidez y Precio Actual"):
-        with st.spinner(
-            "Conectando al servidor del bróker para analizar cotizaciones de"
-            " XAU/USD..."
-        ):
-          exito_p, simbolo, datos_precio = asyncio.run(
-              obtener_precio_oro(cuenta_referencia)
-          )
-          if exito_p:
-            bid = datos_precio.get("bid", 0)
-            ask = datos_precio.get("ask", 0)
-            spread = round((ask - bid) * 10, 1)
-            st.success(
-                f"¡Escaneo completado con éxito utilizando el símbolo"
-                f" `{simbolo}`! 🟢"
+    with pestana_admin_liquidez:
+      st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
+      if socios_dict:
+        cuenta_referencia = list(socios_dict.values())[0]["account_id"]
+        if st.button("🔍 Escanear Zonas de Liquidez y Precio Actual"):
+          with st.spinner("Analizando cotizaciones del Oro..."):
+            exito_p, simbolo, datos_precio = asyncio.run(
+                obtener_precio_oro(cuenta_referencia)
             )
-            col1, col2, col3 = st.columns(3)
-            with col1:
-              st.metric(label="Precio Bid (Venta)", value=f"${bid:,.2f}")
-            with col2:
-              st.metric(label="Precio Ask (Compra)", value=f"${ask:,.2f}")
-            with col3:
-              st.metric(label="Spread Estimado", value=f"{spread} pips")
-            st.markdown("---")
-            st.markdown("### 📊 Zonas Institucionales Detectadas")
-            st.info(
-                "💡 **Análisis de Estructura de Liquidez:**\n"
-                f"- **Precio de Mercado Actual:** ${bid:,.2f}\n"
-                "- **Zona de Resistencia / Liquidez Superior (Buy Stops):** Estimada"
-                f" en `${bid + 5.00:,.2f}`\n"
-                "- **Zona de Soporte / Liquidez Inferior (Sell Stops):** Estimada"
-                f" en `${bid - 5.00:,.2f}`\n"
-                "- **Estado del Algoritmo:** 🟢 Monitoreando ineficiencias (FVG)"
-                " y Order Blocks activos."
-            )
-          else:
-            st.error(f"No se pudo obtener el precio del oro: {datos_precio}")
-    else:
+            if exito_p:
+              bid = datos_precio.get("bid", 0)
+              ask = datos_precio.get("ask", 0)
+              spread = round((ask - bid) * 10, 1)
+              st.success(
+                  f"¡Escaneo completado usando el símbolo `{simbolo}`! 🟢"
+              )
+              col1, col2, col3 = st.columns(3)
+              with col1:
+                st.metric(label="Precio Bid (Venta)", value=f"${bid:,.2f}")
+              with col2:
+                st.metric(label="Precio Ask (Compra)", value=f"${ask:,.2f}")
+              with col3:
+                st.metric(label="Spread Estimado", value=f"{spread} pips")
+              st.markdown("---")
+              st.markdown("### 📊 Zonas Institucionales Detectadas")
+              st.info(
+                  "💡 **Análisis de Estructura de Liquidez:**\n"
+                  f"- **Precio de Mercado Actual:** ${bid:,.2f}\n"
+                  "- **Zona de Resistencia / Liquidez Superior (Buy Stops):**"
+                  f" Estimada en `${bid + 5.00:,.2f}`\n"
+                  "- **Zona de Soporte / Liquidez Inferior (Sell Stops):**"
+                  f" Estimada en `${bid - 5.00:,.2f}`"
+              )
+            else:
+              st.error(f"No se pudo obtener el precio del oro: {datos_precio}")
+      else:
+        st.warning(
+            "⚠ Necesitas al menos una cuenta de socio conectada para utilizar"
+            " la pasarela de datos del mercado."
+        )
+
+  else:
+    # VISTA DE SOCIO / USUARIO NORMAL
+    st.title("📈 Panel de Socio - Radar Liquidity Gold Bot")
+
+    # Verificamos si este socio ya registró su cuenta MT5
+    cuenta_socio = obtener_cuenta_socio(st.session_state.user_name)
+
+    if not cuenta_socio:
       st.warning(
-          "⚠ Debes registrar al menos una cuenta de socio en el panel lateral"
-          " para que el bot pueda utilizarla como pasarela de datos de"
-          " mercado para el Oro."
+          "⚠ **Configuración Inicial:** Aún no has vinculado tu cuenta de"
+          " MetaTrader 5 al bot. Por favor ingresa los datos de tu cuenta de"
+          " trading para comenzar."
       )
 
-  st.markdown("---")
-  st.subheader("📈 Estado del Sistema")
-  c1, c2, c3 = st.columns(3)
-  with c1:
-    st.metric(label="Activo Objetivo", value="XAU/USD (Oro)", delta="Institucional")
-  with c2:
-    st.metric(label="Infraestructura Cloud", value="Activa 🟢", delta="MetaApi")
-  with c3:
-    st.metric(label="Motor de Alertas", value="Operativo ⚡", delta="En línea")
+      st.subheader("🚀 Conectar Mi Cuenta MT5")
+      mt5_login = st.text_input("Número de Cuenta (Login)")
+      mt5_password = st.text_input("Contraseña de Trading", type="password")
+
+      opciones_brokers = [
+          "Selecciona o escribe...",
+          "MetaQuotes-Demo",
+          "VantageInternational-Live 01",
+          "VantageInternational-Live 02",
+          "VantageInternational-Live 03",
+          "VantageInternational-Live 04",
+          "VantageInternational-Demo",
+          "Exness-Real11",
+          "Exness-Real12",
+          "Exness-Real13",
+          "Exness-Trial",
+          "RoboForex-Pro",
+          "RoboForex-ECN",
+          "RoboForex-Demo",
+          "ICMarketsSC-Live 01",
+          "ICMarketsSC-Live 02",
+          "ICMarketsSC-Demo",
+          "Otro (Escribir manualmente)",
+      ]
+
+      broker_seleccionado = st.selectbox(
+          "Servidor del Bróker", opciones_brokers
+      )
+
+      if broker_seleccionado == "Otro (Escribir manualmente)":
+        mt5_server = st.text_input("Escribe el servidor exacto del bróker")
+      elif broker_seleccionado != "Selecciona o escribe...":
+        mt5_server = broker_seleccionado
+      else:
+        mt5_server = ""
+
+      if st.button("Registrar y Conectar mi Cuenta"):
+        if mt5_login and mt5_password and mt5_server:
+          with st.spinner(
+              "Conectando tu cuenta de forma segura a MetaApi Cloud..."
+          ):
+
+            async def registrar_socio_metaapi():
+              try:
+                metaapi = MetaApi(MASTER_METAAPI_TOKEN)
+                account = await metaapi.metatrader_account_api.create_account({
+                    "name": f"Socio - {st.session_state.user_name}",
+                    "type": "cloud",
+                    "login": mt5_login,
+                    "password": mt5_password,
+                    "server": mt5_server,
+                    "platform": "mt5",
+                    "magic": 123456,
+                })
+                return True, account.id
+              except Exception as ex:
+                return False, str(ex)
+
+            exito, resultado = asyncio.run(registrar_socio_metaapi())
+
+            if exito:
+              guardar_relacion_socio(
+                  st.session_state.user_name, resultado, mt5_login, mt5_server
+              )
+              st.success("¡Cuenta conectada y vinculada con éxito! 🟢")
+              st.rerun()
+            else:
+              st.error(f"Error al conectar con el bróker: {resultado}")
+        else:
+          st.warning("Por favor completa todos los campos.")
+    else:
+      # Si ya tiene cuenta registrada, se le muestra su propio panel de control y estado
+      st.success("🟢 Tu cuenta de MetaTrader 5 se encuentra vinculada al sistema.")
+
+      pestana_socio_estado, pestana_socio_radar = st.tabs([
+          "📊 Estado de Mi Cuenta",
+          "⚡ Radar de Liquidez XAU/USD",
+      ])
+
+      with pestana_socio_estado:
+        st.subheader("Información y Balance en Vivo")
+        st.write(
+            f"**🔢 Login:** `{cuenta_socio['login']}` | **🏢 Servidor:**"
+            f" `{cuenta_socio['server']}`"
+        )
+        if st.button("Actualizar Balance y Equidad"):
+          with st.spinner("Consultando servidores..."):
+            exito, resultado = asyncio.run(
+                verificar_estado_cuenta(cuenta_socio["account_id"])
+            )
+            if exito:
+              col_a, col_b, col_c = st.columns(3)
+              with col_a:
+                st.metric(
+                    label="Balance",
+                    value=f"${resultado.get('balance', 0):,.2f}",
+                )
+              with col_b:
+                st.metric(
+                    label="Equidad",
+                    value=f"${resultado.get('equity', 0):,.2f}",
+                )
+              with col_c:
+                st.metric(
+                    label="Moneda", value=resultado.get("currency", "USD")
+                )
+            else:
+              st.error(
+                  f"No se pudo consultar el estado de la cuenta: {resultado}"
+              )
+
+      with pestana_socio_radar:
+        st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
+        if st.button("🔍 Escanear Zonas de Liquidez"):
+          with st.spinner("Analizando cotizaciones del Oro..."):
+            exito_p, simbolo, datos_precio = asyncio.run(
+                obtener_precio_oro(cuenta_socio["account_id"])
+            )
+            if exito_p:
+              bid = datos_precio.get("bid", 0)
+              ask = datos_precio.get("ask", 0)
+              spread = round((ask - bid) * 10, 1)
+              col1, col2, col3 = st.columns(3)
+              with col1:
+                st.metric(label="Precio Bid (Venta)", value=f"${bid:,.2f}")
+              with col2:
+                st.metric(label="Precio Ask (Compra)", value=f"${ask:,.2f}")
+              with col3:
+                st.metric(label="Spread Estimado", value=f"{spread} pips")
+              st.markdown("---")
+              st.markdown("### 📊 Zonas Institucionales Detectadas")
+              st.info(
+                  "💡 **Análisis de Estructura de Liquidez:**\n"
+                  f"- **Precio de Mercado Actual:** ${bid:,.2f}\n"
+                  "- **Zona de Resistencia / Liquidez Superior (Buy Stops):**"
+                  f" Estimada en `${bid + 5.00:,.2f}`\n"
+                  "- **Zona de Soporte / Liquidez Inferior (Sell Stops):**"
+                  f" Estimada en `${bid - 5.00:,.2f}`"
+              )
+            else:
+              st.error(f"No se pudo obtener el precio del oro: {datos_precio}")
