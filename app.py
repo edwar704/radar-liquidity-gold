@@ -63,7 +63,7 @@ if 'invite_codes' not in st.session_state:
     st.session_state['invite_codes'] = ['GOLD-2026', 'GOLD-DEMO']
 
 # ==========================================
-# 3. LÓGICA DE LOGIN Y REGISTRO (CON st.form)
+# 3. LÓGICA DE LOGIN Y REGISTRO (CON st.form MEJORADO)
 # ==========================================
 def login_screen():
     st.title("Radar Liquidity Gold")
@@ -85,12 +85,13 @@ def login_screen():
             submit_socio = st.form_submit_button("Ingresar como Socio")
             
             if submit_socio:
-                if usuario.strip() != "" and codigo_invitacion in st.session_state['invite_codes']:
+                # Usamos .strip() para limpiar espacios invisibles
+                if usuario.strip() != "" and codigo_invitacion.strip() in st.session_state['invite_codes']:
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'socio'
                     st.rerun() 
                 else:
-                    st.error("Código de invitación inválido o usuario vacío.")
+                    st.error("Código de invitación inválido o usuario vacío. Verifica que no haya espacios extra.")
                     
     with tab2:
         st.subheader("Panel de Administración")
@@ -100,12 +101,14 @@ def login_screen():
             submit_admin = st.form_submit_button("Ingresar como Admin")
             
             if submit_admin:
-                if admin_user == "admin" and admin_pass == "admin123":
+                # Limpiamos espacios con .strip() y convertimos el usuario a minúsculas (.lower())
+                # para que "Admin", "admin ", o " ADMIN " funcionen igual.
+                if admin_user.strip().lower() == "admin" and admin_pass.strip() == "admin123":
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'admin'
                     st.rerun()
                 else:
-                    st.error("Credenciales de administrador incorrectas.")
+                    st.error("Credenciales incorrectas. Verifica que no tengas espacios en blanco al final.")
 
 # ==========================================
 # 4. DASHBOARD DE ADMINISTRADOR
