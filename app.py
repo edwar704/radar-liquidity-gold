@@ -170,10 +170,10 @@ def admin_dashboard():
                 st.session_state['last_generated_code'] = nuevo_codigo
                 st.rerun()
                 
-            # Muestra el enlace para copiar directo si hay un código generado reciéntemente
+            # Muestra el enlace público con la URL de producción
             if st.session_state['last_generated_code']:
                 st.success("Enlace listo para compartir:")
-                st.code(f"http://localhost:8501/?invite={st.session_state['last_generated_code']}")
+                st.code(f"https://radar-liquidity-gold-bot.streamlit.app/?invite={st.session_state['last_generated_code']}")
                 
             st.markdown("---")
             st.markdown("#### Eliminar Código")
