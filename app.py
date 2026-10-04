@@ -8,86 +8,140 @@ from metaapi_cloud_sdk import MetaApi
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS
+# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS V 2.0
 # ==========================================
 st.set_page_config(
     page_title="Radar Liquidity Gold Bot",
-    page_icon="🔒",
+    page_icon="⚡",
     layout="wide",
 )
 
 st.markdown("""
     <style>
-    /* Tarjeta flotante para configuración MT5 (A la derecha, reducida) */
+    /* Estilos globales y tipografía de alta gama */
+    .stApp {
+        background-color: #0b0e14;
+        color: #d1d4dc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Ocultar elementos predeterminados de Streamlit para limpieza visual */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* Tarjeta flotante principal para configuración MT5 */
     .mt5-floating-card {
-        background: linear-gradient(135deg, #1e222d 0%, #161a23 100%);
-        border: 1px solid #2a2e39;
+        background: linear-gradient(145deg, #181c25 0%, #12151d 100%);
+        border: 1px solid #232a36;
         border-radius: 16px;
-        padding: 20px;
+        padding: 22px;
         position: relative;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        margin-top: 10px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+        margin-top: 5px;
         margin-bottom: 20px;
     }
     
     .mt5-badge-floating {
         position: absolute;
-        top: 18px;
-        right: 18px;
+        top: 20px;
+        right: 20px;
         background: linear-gradient(135deg, #008eff 0%, #0044cc 100%);
-        width: 38px;
-        height: 38px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: bold;
+        font-weight: 800;
         font-size: 0.75rem;
-        box-shadow: 0 4px 12px rgba(0, 142, 255, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 142, 255, 0.5);
         letter-spacing: 0.5px;
     }
 
     .mt5-floating-card h3 {
         color: #ffffff;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 1.15rem;
+        font-size: 1.2rem;
         font-weight: 700;
-        margin-bottom: 3px;
+        margin-bottom: 4px;
+        letter-spacing: 0.3px;
     }
 
     .mt5-floating-card p {
         color: #848e9c;
-        font-size: 0.8rem;
-        margin-bottom: 15px;
+        font-size: 0.82rem;
+        margin-bottom: 18px;
     }
 
-    /* Tarjeta de aviso azul MT5 elegante y no agresiva */
+    /* Tarjeta de aviso azul MT5 elegante */
     .mt5-notice-card {
-        background: linear-gradient(135deg, rgba(0, 142, 255, 0.12) 0%, rgba(22, 26, 35, 0.8) 100%);
-        border: 1px solid rgba(0, 142, 255, 0.3);
-        border-radius: 12px;
-        padding: 15px 20px;
-        color: #d1d4dc;
+        background: linear-gradient(135deg, rgba(0, 142, 255, 0.1) 0%, rgba(18, 21, 29, 0.9) 100%);
+        border: 1px solid rgba(0, 142, 255, 0.35);
+        border-radius: 14px;
+        padding: 16px 20px;
+        color: #e2e8f0;
         font-size: 0.9rem;
         margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        gap: 14px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
     }
+    
     .mt5-notice-icon {
-        background: #008eff;
+        background: linear-gradient(135deg, #008eff 0%, #0055ff 100%);
         color: white;
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 142, 255, 0.4);
+    }
+
+    /* Contenedores de gráficos y métricas personalizados */
+    div.stButton > button {
+        background: linear-gradient(135deg, #008eff 0%, #0055ff 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        box-shadow: 0 4px 12px rgba(0, 142, 255, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    div.stButton > button:hover {
+        background: linear-gradient(135deg, #1a9aff 0%, #0066ff 100%);
+        box-shadow: 0 6px 18px rgba(0, 142, 255, 0.5);
+        transform: translateY(-1px);
+    }
+
+    /* Estilo de pestañas (Tabs) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #12151d;
+        padding: 6px;
+        border-radius: 12px;
+        border: 1px solid #232a36;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 40px;
+        border-radius: 8px;
+        color: #848e9c;
+        font-weight: 600;
+        border: none;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #1e2532 0%, #161b24 100%);
+        color: #008eff;
+        border: 1px solid rgba(0, 142, 255, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -324,7 +378,7 @@ params = st.query_params
 codigo_desde_url = params.get("invite", "")
 
 if not st.session_state.logged_in:
-  st.title("📈 Radar Liquidity Gold Bot - Acceso")
+  st.title("⚡ Radar Liquidity Gold Bot - Acceso")
   st.info(
       "🔒 Inicia sesión con tu cuenta o regístrate con el código de invitación"
       " que te proporcionó el administrador."
@@ -433,7 +487,7 @@ else:
   # INTERFAZ PRINCIPAL SEGÚN EL ROL
   # ==========================================
   if is_admin_user:
-    st.title("📈 Panel de Control - Administrador")
+    st.title("⚡ Panel de Control - Administrador")
 
     pestana_admin_socios, pestana_admin_liquidez = st.tabs([
         "📊 Monitoreo de Cuentas de Socios",
@@ -535,7 +589,7 @@ else:
 
   else:
     # VISTA DE SOCIO / USUARIO NORMAL
-    st.title("📈 Panel de Socio - Radar Liquidity Gold Bot")
+    st.title("⚡ Panel de Socio - Radar Liquidity Gold Bot")
 
     cuenta_socio = obtener_cuenta_socio(st.session_state.user_name)
 
@@ -558,7 +612,6 @@ else:
     with pestana_socio_radar:
       st.subheader("⚡ Motor de Análisis Institucional y Liquidez (XAU/USD)")
 
-      # Inicialización del estado de las velas en sesión
       if "live_candles" not in st.session_state:
         st.session_state.live_candles = {
             "Tiempos": [
@@ -683,7 +736,6 @@ else:
     st.markdown("---")
 
     if not cuenta_socio:
-      # Aviso elegante en azul institucional MT5
       st.markdown(
           """
             <div class="mt5-notice-card">
@@ -779,7 +831,6 @@ else:
           "⚙️ Configurar MT5",
           expanded=not bool(cuenta_socio),
       ):
-        # Tarjeta flotante compacta con insignia MT5 a la derecha
         st.markdown(
             """
                 <div class="mt5-floating-card">
