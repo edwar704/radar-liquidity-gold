@@ -7,57 +7,76 @@ import pandas as pd
 # ==========================================
 st.set_page_config(page_title="Radar Liquidity Gold Bot", page_icon="📈", layout="centered")
 
-def aplicar_estilo_amigable():
-    estilo_css = """
+# Inicializar estado del modo oscuro
+if 'dark_mode' not in st.session_state:
+    st.session_state['dark_mode'] = False
+
+def aplicar_estilo(dark_mode=False):
+    if dark_mode:
+        bg_color = "#0e1117"
+        card_bg = "#1e2630"
+        text_color = "#ffffff"
+        subtext_color = "#b0b8c4"
+        table_bg = "#161b22"
+    else:
+        bg_color = "#ffffff"
+        card_bg = "#f4fbfa"
+        text_color = "#333333"
+        subtext_color = "#666666"
+        table_bg = "#f8f9fa"
+
+    estilo_css = f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
 
-    html, body, [class*="css"], [class*="st-"] {
+    html, body, .stApp {{
+        background-color: {bg_color} !important;
         font-family: 'Poppins', sans-serif !important;
-    }
+    }}
     
-    p, span, div {
-        color: #333333; 
-    }
+    p, span, div, label, h1, h2, h3, h4 {{
+        color: {text_color} !important; 
+    }}
     
     /* Estilizar botones: Degradado de Azul Claro a Verde */
-    div.stButton > button:first-child, div.stFormSubmitButton > button:first-child {
+    div.stButton > button:first-child, div.stFormSubmitButton > button:first-child {{
         background: linear-gradient(135deg, #48cae4 0%, #2a9d8f 100%);
-        color: white;
+        color: white !important;
         border-radius: 8px;
         border: none;
         padding: 10px 24px;
         font-weight: 500;
         transition: all 0.3s ease;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    }}
     
-    div.stButton > button:first-child:hover, div.stFormSubmitButton > button:first-child:hover {
+    div.stButton > button:first-child:hover, div.stFormSubmitButton > button:first-child:hover {{
         background: linear-gradient(135deg, #00b4d8 0%, #21867a 100%);
         box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         transform: translateY(-2px);
-    }
+    }}
 
     /* Personalizar los cuadros de métricas */
-    div[data-testid="metric-container"] {
-        background-color: #f4fbfa;
+    div[data-testid="metric-container"] {{
+        background-color: {card_bg} !important;
         border-left: 5px solid #2a9d8f;
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    /* Pequeño ajuste para las tablas de Streamlit */
-    [data-testid="stTable"], [data-testid="stDataFrame"] {
+    }}
+
+    /* Tablas adaptables al tema */
+    [data-testid="stTable"], [data-testid="stDataFrame"] {{
+        background-color: {table_bg} !important;
         border-radius: 8px;
         overflow: hidden;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
+    }}
     </style>
     """
     st.markdown(estilo_css, unsafe_allow_html=True)
 
-aplicar_estilo_amigable()
+aplicar_estilo(st.session_state['dark_mode'])
 
 # ==========================================
 # 2. INICIALIZACIÓN DE VARIABLES DE SESIÓN
@@ -70,7 +89,17 @@ if 'invite_codes' not in st.session_state:
     st.session_state['invite_codes'] = ['GOLD-2026', 'GOLD-DEMO']
 
 # ==========================================
-# 3. LÓGICA DE LOGIN Y REGISTRO
+# 3. BARRA SUPERIOR DE CONTROL (MODO OSCURO)
+# ==========================================
+col_vacia, col_modo = st.columns([3, 1])
+with col_modo:
+    modo_oscuro = st.toggle("🌙 Modo Oscuro", value=st.session_state['dark_mode'])
+    if modo_oscuro != st.session_state['dark_mode']:
+        st.session_state['dark_mode'] = modo_oscuro
+        st.rerun()
+
+# ==========================================
+# 4. LÓGICA DE LOGIN Y REGISTRO
 # ==========================================
 def login_screen():
     st.title("Radar Liquidity Gold")
@@ -114,13 +143,12 @@ def login_screen():
                     st.error("Credenciales incorrectas.")
 
 # ==========================================
-# 4. DASHBOARD DE ADMINISTRADOR (MEJORADO)
+# 5. DASHBOARD DE ADMINISTRADOR
 # ==========================================
 def admin_dashboard():
     st.title("⚙️ Centro de Control Admin")
     st.write("Monitoreo general y gestión de cuentas del bot.")
     
-    # Métricas principales
     col1, col2, col3 = st.columns(3)
     col1.metric(label="Códigos Activos", value=len(st.session_state['invite_codes']))
     col2.metric(label="Estado MetaApi", value="Desconectado", delta="Requiere Configuración", delta_color="off")
@@ -128,13 +156,10 @@ def admin_dashboard():
     
     st.divider()
     
-    # Pestañas organizativas para el admin
     tab_accesos, tab_api = st.tabs(["🔑 Gestión de Accesos", "🔌 Configuración MetaApi"])
     
     with tab_accesos:
         st.subheader("Control de Invitaciones")
-        
-        # Dividimos en dos columnas: izquierda para generar, derecha para ver la lista
         col_gen, col_lista = st.columns([1, 1.5])
         
         with col_gen:
@@ -146,7 +171,6 @@ def admin_dashboard():
                 st.code(f"http://localhost:8501/?invite={nuevo_codigo}")
                 
         with col_lista:
-            # Mostramos los códigos en una tabla bonita usando un DataFrame de Pandas
             df_codigos = pd.DataFrame({
                 "Código de Invitación": st.session_state['invite_codes'],
                 "Estado": ["Activo"] * len(st.session_state['invite_codes'])
@@ -163,8 +187,7 @@ def admin_dashboard():
             
     st.divider()
     
-    # Botón de cerrar sesión alineado a la derecha
-    col_vacia, col_salir = st.columns([3, 1])
+    col_vacia_salir, col_salir = st.columns([3, 1])
     with col_salir:
         if st.button("Cerrar Sesión", use_container_width=True):
             st.session_state['logged_in'] = False
@@ -172,7 +195,7 @@ def admin_dashboard():
             st.rerun()
 
 # ==========================================
-# 5. DASHBOARD DEL SOCIO (EL BOT)
+# 6. DASHBOARD DEL SOCIO (EL BOT)
 # ==========================================
 def socio_dashboard():
     st.title("Radar Liquidity Gold Bot")
@@ -199,7 +222,7 @@ def socio_dashboard():
     
     st.divider()
     
-    col_vacia, col_salir = st.columns([3, 1])
+    col_vacia_salir, col_salir = st.columns([3, 1])
     with col_salir:
         if st.button("Cerrar Sesión", use_container_width=True):
             st.session_state['logged_in'] = False
@@ -207,7 +230,7 @@ def socio_dashboard():
             st.rerun()
 
 # ==========================================
-# 6. CONTROL DE RUTAS PRINCIPAL
+# 7. CONTROL DE RUTAS PRINCIPAL
 # ==========================================
 if not st.session_state['logged_in']:
     login_screen()
