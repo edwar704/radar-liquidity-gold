@@ -16,13 +16,11 @@ def aplicar_estilo(dark_mode=False):
         bg_color = "#0e1117"
         card_bg = "#1e2630"
         text_color = "#ffffff"
-        subtext_color = "#b0b8c4"
         table_bg = "#161b22"
     else:
         bg_color = "#ffffff"
         card_bg = "#f4fbfa"
         text_color = "#333333"
-        subtext_color = "#666666"
         table_bg = "#f8f9fa"
 
     estilo_css = f"""
@@ -160,22 +158,40 @@ def admin_dashboard():
     
     with tab_accesos:
         st.subheader("Control de Invitaciones")
-        col_gen, col_lista = st.columns([1, 1.5])
+        col_gen, col_lista = st.columns([1, 1.2])
         
         with col_gen:
-            st.info("Genera códigos únicos para invitar a nuevos socios al sistema.")
-            if st.button("Generar Nuevo Código", use_container_width=True):
+            st.markdown("#### Crear Código")
+            if st.button("➕ Generar Nuevo Código", use_container_width=True):
                 nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
                 st.session_state['invite_codes'].append(nuevo_codigo)
-                st.success(f"¡Código creado!")
-                st.code(f"http://localhost:8501/?invite={nuevo_codigo}")
+                st.success("¡Código creado!")
+                st.rerun()
+                
+            st.markdown("---")
+            st.markdown("#### Eliminar Código")
+            if len(st.session_state['invite_codes']) > 0:
+                codigo_eliminar = st.selectbox(
+                    "Selecciona un código a eliminar:",
+                    options=st.session_state['invite_codes']
+                )
+                if st.button("🗑️ Eliminar Código Seleccionado", use_container_width=True):
+                    st.session_state['invite_codes'].remove(codigo_eliminar)
+                    st.success(f"Código '{codigo_eliminar}' eliminado con éxito.")
+                    st.rerun()
+            else:
+                st.info("No hay códigos de invitación para eliminar.")
                 
         with col_lista:
-            df_codigos = pd.DataFrame({
-                "Código de Invitación": st.session_state['invite_codes'],
-                "Estado": ["Activo"] * len(st.session_state['invite_codes'])
-            })
-            st.dataframe(df_codigos, use_container_width=True, hide_index=True)
+            st.markdown("#### Listado de Códigos Activos")
+            if len(st.session_state['invite_codes']) > 0:
+                df_codigos = pd.DataFrame({
+                    "Código de Invitación": st.session_state['invite_codes'],
+                    "Estado": ["Activo"] * len(st.session_state['invite_codes'])
+                })
+                st.dataframe(df_codigos, use_container_width=True, hide_index=True)
+            else:
+                st.warning("No hay códigos activos en el sistema.")
             
     with tab_api:
         st.subheader("Integración con MetaApi")
