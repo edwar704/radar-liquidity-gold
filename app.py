@@ -49,6 +49,50 @@ else:
     """, unsafe_allow_html=True)
 
 
+# --- FUNCIÓN ISOLADA PARA EL PANEL DE ADMINISTRADOR ---
+def render_admin_panel():
+    st.subheader("⚙️ Panel de Control del Administrador")
+    
+    tab_usuarios, tab_bot, tab_licencias, tab_logs = st.tabs([
+        "👥 Gestión de Usuarios", 
+        "🤖 Configuración del Bot", 
+        "🔑 Licencias y Accesos", 
+        "📊 Monitoreo y Logs"
+    ])
+    
+    with tab_usuarios:
+        st.markdown("### Agregar o Modificar Usuarios")
+        nuevo_user = st.text_input("Nombre de Usuario Nuevo")
+        nuevo_pass = st.text_input("Contraseña Temporal", type="password")
+        rol_select = st.selectbox("Rol", ["admin", "invitado"])
+        if st.button("Registrar Usuario"):
+            st.success(f"¡Usuario {nuevo_user} registrado con éxito!")
+            
+    with tab_bot:
+        st.markdown("### Parámetros Globales del Bot")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.number_input("RSI Período Global", value=14)
+            st.number_input("EMA Rápida Global", value=8)
+        with col2:
+            st.number_input("Límite de Riesgo Diario (%)", value=2.0)
+        if st.button("Guardar Parámetros Globales"):
+            st.success("Parámetros actualizados para todos los usuarios.")
+            
+    with tab_licencias:
+        st.markdown("### Control de Suscripciones Activas")
+        st.info("Aquí puedes activar o suspender licencias de MetaTrader 5.")
+        st.metric(label="Licencias Activas", value="12", delta="+2 este mes")
+        
+    with tab_logs:
+        st.markdown("### Registro de Actividad del Sistema")
+        st.code("""
+[INFO] 2026-10-04 07:00:00 - Sistema iniciado correctamente.
+[INFO] 2026-10-04 07:05:12 - Usuario 'admin' inició sesión.
+[SUCCESS] 2026-10-04 07:10:30 - Parámetros del bot sincronizados.
+        """, language="text")
+
+
 # --- PANTALLA DE LOGIN CENTRADA Y COMPACTA ---
 if not st.session_state["autenticado"]:
     col_space, col_btn = st.columns([5, 1])
@@ -77,10 +121,8 @@ if not st.session_state["autenticado"]:
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos.")
-                
-        # (Se eliminó el bloque st.info de prueba que mostraba las credenciales)
 
-# --- PANTALLAS SEGÚN EL ROL (Una vez logueado) ---
+# --- PÁGINAS SEGÚN EL ROL (Una vez logueado) ---
 else:
     col_title, col_theme, col_logout = st.columns([3, 1, 1])
     
@@ -105,27 +147,11 @@ else:
             
     st.divider()
 
-    # Vista para Administrador
+    # Vista para Administrador (Llama a nuestra función modular aislada)
     if st.session_state["rol"] == "admin":
-        st.subheader("⚙️ Panel del Administrador")
-        tab_usr, tab_bot, tab_lic = st.tabs(["Gestión de Usuarios", "Parámetros del Bot", "Licencias"])
-        
-        with tab_usr:
-            st.text_input("Nuevo Usuario")
-            st.text_input("Contraseña Temporal", type="password")
-            if st.button("Guardar Usuario"):
-                st.success("Usuario registrado.")
-                
-        with tab_bot:
-            st.number_input("Período RSI Principal", value=14)
-            st.number_input("EMA Rápida", value=8)
-            if st.button("Actualizar Parámetros"):
-                st.success("Parámetros globales actualizados.")
-                
-        with tab_lic:
-            st.write("Control de suscripciones activas.")
+        render_admin_panel()
 
-    # Vista para Invitado
+    # Vista para Invitado (Intacta)
     elif st.session_state["rol"] == "invitado":
         st.subheader("📊 Panel del Invitado & Monitoreo del Bot")
         
