@@ -7,7 +7,14 @@ import pandas as pd
 # ==========================================
 st.set_page_config(page_title="Radar Liquidity Gold Bot", page_icon="📈", layout="centered")
 
-# Inicializar estado del modo oscuro
+# Almacén de códigos COMPARTIDO entre todos los usuarios y sesiones
+@st.cache_resource
+def obtener_codigos_compartidos():
+    return ['GOLD-2026', 'GOLD-DEMO']
+
+codigos_globales = obtener_codigos_compartidos()
+
+# Inicializar estado del modo oscuro (privado de cada usuario)
 if 'dark_mode' not in st.session_state:
     st.session_state['dark_mode'] = False
 
@@ -36,7 +43,6 @@ def aplicar_estilo(dark_mode=False):
         color: {text_color} !important; 
     }}
     
-    /* Estilizar botones: Degradado de Azul Claro a Verde */
     div.stButton > button:first-child, div.stFormSubmitButton > button:first-child {{
         background: linear-gradient(135deg, #48cae4 0%, #2a9d8f 100%);
         color: white !important;
@@ -54,7 +60,6 @@ def aplicar_estilo(dark_mode=False):
         transform: translateY(-2px);
     }}
 
-    /* Personalizar los cuadros de métricas */
     div[data-testid="metric-container"] {{
         background-color: {card_bg} !important;
         border-left: 5px solid #2a9d8f;
@@ -63,7 +68,6 @@ def aplicar_estilo(dark_mode=False):
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }}
 
-    /* Tablas adaptables al tema */
     [data-testid="stTable"], [data-testid="stDataFrame"] {{
         background-color: {table_bg} !important;
         border-radius: 8px;
@@ -83,8 +87,6 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'role' not in st.session_state:
     st.session_state['role'] = None
-if 'invite_codes' not in st.session_state:
-    st.session_state['invite_codes'] = ['GOLD-2026', 'GOLD-DEMO']
 if 'last_generated_code' not in st.session_state:
     st.session_state['last_generated_code'] = None
 
@@ -120,7 +122,8 @@ def login_screen():
             submit_socio = st.form_submit_button("Ingresar como Socio")
             
             if submit_socio:
-                if usuario.strip() != "" and codigo_invitacion.strip() in st.session_state['invite_codes']:
+                # Se valida contra la lista global compartida
+                if usuario.strip() != "" and codigo_invitacion.strip() in codigos_globales:
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'socio'
                     st.rerun() 
@@ -150,7 +153,7 @@ def admin_dashboard():
     st.write("Monitoreo general y gestión de cuentas del bot.")
     
     col1, col2, col3 = st.columns(3)
-    col1.metric(label="Códigos Activos", value=len(st.session_state['invite_codes']))
+    col1.metric(label="Códigos Activos", value=len(codigos_globales))
     col2.metric(label="Estado MetaApi", value="Desconectado", delta="Requiere Configuración", delta_color="off")
     col3.metric(label="Socios Conectados", value="0", delta="Sistema en Pausa", delta_color="off")
     
@@ -166,24 +169,23 @@ def admin_dashboard():
             st.markdown("#### Crear Código")
             if st.button("➕ Generar Nuevo Código", use_container_width=True):
                 nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
-                st.session_state['invite_codes'].append(nuevo_codigo)
+                codigos_globales.append(nuevo_codigo)
                 st.session_state['last_generated_code'] = nuevo_codigo
                 st.rerun()
                 
-            # Muestra el enlace público con la URL de producción
             if st.session_state['last_generated_code']:
                 st.success("Enlace listo para compartir:")
                 st.code(f"https://radar-liquidity-gold-bot.streamlit.app/?invite={st.session_state['last_generated_code']}")
                 
             st.markdown("---")
             st.markdown("#### Eliminar Código")
-            if len(st.session_state['invite_codes']) > 0:
+            if len(codigos_globales) > 0:
                 codigo_eliminar = st.selectbox(
                     "Selecciona un código a eliminar:",
-                    options=st.session_state['invite_codes']
+                    options=codigos_globales
                 )
                 if st.button("🗑️ Eliminar Código Seleccionado", use_container_width=True):
-                    st.session_state['invite_codes'].remove(codigo_eliminar)
+                    codigos_globales.remove(codigo_eliminar)
                     if st.session_state['last_generated_code'] == codigo_eliminar:
                         st.session_state['last_generated_code'] = None
                     st.success(f"Código '{codigo_eliminar}' eliminado.")
@@ -193,10 +195,10 @@ def admin_dashboard():
                 
         with col_lista:
             st.markdown("#### Listado de Códigos Activos")
-            if len(st.session_state['invite_codes']) > 0:
+            if len(codigos_globales) > 0:
                 df_codigos = pd.DataFrame({
-                    "Código de Invitación": st.session_state['invite_codes'],
-                    "Estado": ["Activo"] * len(st.session_state['invite_codes'])
+                    "Código de Invitación": codigos_globales,
+                    "Estado": ["Activo"] * len(codigos_globales)
                 })
                 st.dataframe(df_codigos, use_container_width=True, hide_index=True)
             else:
