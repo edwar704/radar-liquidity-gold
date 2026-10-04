@@ -49,36 +49,9 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- FUNCIÓN AISLADA PARA EL PANEL DE ADMINISTRADOR (ESTILO MT5 LIGHT) ---
+# --- FUNCIÓN AISLADA PARA EL PANEL DE ADMINISTRADOR (ESTILO MT5) ---
 def render_admin_panel():
-    # Estilos específicos para forzar el fondo claro y diseño clásico de MetaTrader 5
-    st.markdown("""
-        <style>
-        .mt5-terminal-container {
-            background-color: #f0f3f6 !important;
-            padding: 25px;
-            border-radius: 8px;
-            border: 1px solid #b0bec5;
-            color: #1a1a1a !important;
-        }
-        .mt5-terminal-container h3, .mt5-terminal-container h4, .mt5-terminal-container p, .mt5-terminal-container label {
-            color: #1a1a1a !important;
-        }
-        .mt5-card {
-            background-color: #ffffff !important;
-            padding: 18px;
-            border-radius: 6px;
-            border: 1px solid #d0d7de;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Contenedor principal con estilo MT5
-    st.markdown('<div class="mt5-terminal-container">', unsafe_allow_html=True)
-    
-    st.markdown("### ⚙️ Panel de Control del Administrador <span style='font-size:13px; color:#555;'>[Terminal MT5 - Light Edition]</span>", unsafe_allow_html=True)
+    st.markdown("### ⚙️ Panel de Control del Administrador <span style='font-size:13px; color:#888;'>[Terminal MT5 - Admin Edition]</span>", unsafe_allow_html=True)
     st.write("")
 
     tab_usuarios, tab_bot, tab_licencias, tab_logs = st.tabs([
@@ -89,46 +62,41 @@ def render_admin_panel():
     ])
     
     with tab_usuarios:
-        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
-        st.markdown("#### Agregar o Modificar Usuarios")
-        nuevo_user = st.text_input("Nombre de Usuario Nuevo", key="admin_new_user")
-        nuevo_pass = st.text_input("Contraseña Temporal", type="password", key="admin_new_pass")
-        rol_select = st.selectbox("Rol", ["admin", "invitado"], key="admin_rol_select")
-        if st.button("Registrar Usuario", key="admin_btn_reg"):
-            st.success(f"¡Usuario {nuevo_user} registrado con éxito!")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Usamos contenedores nativos con borde para lograr tarjetas limpias y ordenadas tipo MT5
+        with st.container(border=True):
+            st.markdown("#### Agregar o Modificar Usuarios")
+            nuevo_user = st.text_input("Nombre de Usuario Nuevo", key="admin_new_user")
+            nuevo_pass = st.text_input("Contraseña Temporal", type="password", key="admin_new_pass")
+            rol_select = st.selectbox("Rol", ["admin", "invitado"], key="admin_rol_select")
+            if st.button("Registrar Usuario", key="admin_btn_reg"):
+                st.success(f"¡Usuario {nuevo_user} registrado con éxito!")
             
     with tab_bot:
-        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
-        st.markdown("#### Parámetros Globales del Bot")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.number_input("RSI Período Global", value=14, key="admin_rsi")
-            st.number_input("EMA Rápida Global", value=8, key="admin_ema")
-        with col2:
-            st.number_input("Límite de Riesgo Diario (%)", value=2.0, key="admin_risk")
-        if st.button("Guardar Parámetros Globales", key="admin_btn_params"):
-            st.success("Parámetros actualizados para todos los usuarios.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Parámetros Globales del Bot")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.number_input("RSI Período Global", value=14, key="admin_rsi")
+                st.number_input("EMA Rápida Global", value=8, key="admin_ema")
+            with col2:
+                st.number_input("Límite de Riesgo Diario (%)", value=2.0, key="admin_risk")
+            if st.button("Guardar Parámetros Globales", key="admin_btn_params"):
+                st.success("Parámetros actualizados para todos los usuarios.")
             
     with tab_licencias:
-        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
-        st.markdown("#### Control de Suscripciones Activas")
-        st.info("Aquí puedes activar o suspender licencias de MetaTrader 5.")
-        st.metric(label="Licencias Activas", value="12", delta="+2 este mes")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Control de Suscripciones Activas")
+            st.info("Aquí puedes activar o suspender licencias de MetaTrader 5.")
+            st.metric(label="Licencias Activas", value="12", delta="+2 este mes")
         
     with tab_logs:
-        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
-        st.markdown("#### Registro de Actividad del Sistema")
-        st.code("""
+        with st.container(border=True):
+            st.markdown("#### Registro de Actividad del Sistema")
+            st.code("""
 [INFO] 2026-10-04 07:00:00 - Sistema iniciado correctamente.
 [INFO] 2026-10-04 07:05:12 - Usuario 'admin' inició sesión.
 [SUCCESS] 2026-10-04 07:10:30 - Parámetros del bot sincronizados.
-        """, language="text")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    st.markdown('</div>', unsafe_allow_html=True)
+            """, language="text")
 
 
 # --- PANTALLA DE LOGIN CENTRADA Y COMPACTA ---
@@ -185,7 +153,7 @@ else:
             
     st.divider()
 
-    # Vista para Administrador (Panel con estilo MT5 Light forzado)
+    # Vista para Administrador
     if st.session_state["rol"] == "admin":
         render_admin_panel()
 
