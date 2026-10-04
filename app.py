@@ -51,21 +51,36 @@ else:
 
 # --- FUNCIÓN AISLADA PARA EL PANEL DE ADMINISTRADOR (ESTILO MT5 LIGHT) ---
 def render_admin_panel():
-    # Inyectamos estilos específicos para darle el toque MT5 Light al panel de admin
+    # Estilos específicos para forzar el fondo claro y diseño clásico de MetaTrader 5
     st.markdown("""
         <style>
-        .mt5-admin-box {
-            background-color: #f4f6f8;
-            padding: 20px;
+        .mt5-terminal-container {
+            background-color: #f0f3f6 !important;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #b0bec5;
+            color: #1a1a1a !important;
+        }
+        .mt5-terminal-container h3, .mt5-terminal-container h4, .mt5-terminal-container p, .mt5-terminal-container label {
+            color: #1a1a1a !important;
+        }
+        .mt5-card {
+            background-color: #ffffff !important;
+            padding: 18px;
             border-radius: 6px;
-            border: 1px solid #dcdcdc;
-            color: #111111;
+            border: 1px solid #d0d7de;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
         }
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("### ⚙️ Panel de Control del Administrador <span style='font-size:14px; color:#555;'>(MT5 Financial Style)</span>", unsafe_allow_html=True)
+    # Contenedor principal con estilo MT5
+    st.markdown('<div class="mt5-terminal-container">', unsafe_allow_html=True)
     
+    st.markdown("### ⚙️ Panel de Control del Administrador <span style='font-size:13px; color:#555;'>[Terminal MT5 - Light Edition]</span>", unsafe_allow_html=True)
+    st.write("")
+
     tab_usuarios, tab_bot, tab_licencias, tab_logs = st.tabs([
         "👥 Gestión de Usuarios", 
         "🤖 Configuración del Bot", 
@@ -74,7 +89,7 @@ def render_admin_panel():
     ])
     
     with tab_usuarios:
-        st.markdown('<div class="mt5-admin-box">', unsafe_allow_html=True)
+        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
         st.markdown("#### Agregar o Modificar Usuarios")
         nuevo_user = st.text_input("Nombre de Usuario Nuevo", key="admin_new_user")
         nuevo_pass = st.text_input("Contraseña Temporal", type="password", key="admin_new_pass")
@@ -84,7 +99,7 @@ def render_admin_panel():
         st.markdown('</div>', unsafe_allow_html=True)
             
     with tab_bot:
-        st.markdown('<div class="mt5-admin-box">', unsafe_allow_html=True)
+        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
         st.markdown("#### Parámetros Globales del Bot")
         col1, col2 = st.columns(2)
         with col1:
@@ -97,14 +112,14 @@ def render_admin_panel():
         st.markdown('</div>', unsafe_allow_html=True)
             
     with tab_licencias:
-        st.markdown('<div class="mt5-admin-box">', unsafe_allow_html=True)
+        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
         st.markdown("#### Control de Suscripciones Activas")
         st.info("Aquí puedes activar o suspender licencias de MetaTrader 5.")
         st.metric(label="Licencias Activas", value="12", delta="+2 este mes")
         st.markdown('</div>', unsafe_allow_html=True)
         
     with tab_logs:
-        st.markdown('<div class="mt5-admin-box">', unsafe_allow_html=True)
+        st.markdown('<div class="mt5-card">', unsafe_allow_html=True)
         st.markdown("#### Registro de Actividad del Sistema")
         st.code("""
 [INFO] 2026-10-04 07:00:00 - Sistema iniciado correctamente.
@@ -112,6 +127,8 @@ def render_admin_panel():
 [SUCCESS] 2026-10-04 07:10:30 - Parámetros del bot sincronizados.
         """, language="text")
         st.markdown('</div>', unsafe_allow_html=True)
+        
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # --- PANTALLA DE LOGIN CENTRADA Y COMPACTA ---
@@ -168,7 +185,7 @@ else:
             
     st.divider()
 
-    # Vista para Administrador (Llama a nuestra función modular aislada con estilo MT5)
+    # Vista para Administrador (Panel con estilo MT5 Light forzado)
     if st.session_state["rol"] == "admin":
         render_admin_panel()
 
