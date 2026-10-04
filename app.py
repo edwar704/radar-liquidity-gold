@@ -38,12 +38,19 @@ def aplicar_estilo_amigable():
         transform: translateY(-2px);
     }
 
-    /* Personalizar los cuadros de métricas (Precios Bid/Ask) */
+    /* Personalizar los cuadros de métricas */
     div[data-testid="metric-container"] {
         background-color: #f4fbfa;
         border-left: 5px solid #2a9d8f;
         padding: 15px;
         border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    /* Pequeño ajuste para las tablas de Streamlit */
+    [data-testid="stTable"], [data-testid="stDataFrame"] {
+        border-radius: 8px;
+        overflow: hidden;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     </style>
@@ -63,13 +70,12 @@ if 'invite_codes' not in st.session_state:
     st.session_state['invite_codes'] = ['GOLD-2026', 'GOLD-DEMO']
 
 # ==========================================
-# 3. LÓGICA DE LOGIN Y REGISTRO (CON st.form MEJORADO)
+# 3. LÓGICA DE LOGIN Y REGISTRO
 # ==========================================
 def login_screen():
     st.title("Radar Liquidity Gold")
     st.write("Bienvenido. Ingresa tus credenciales para acceder al sistema.")
     
-    # Manejo seguro de parámetros de URL 
     try:
         codigo_url = st.query_params.get("invite", "")
     except AttributeError:
@@ -85,13 +91,12 @@ def login_screen():
             submit_socio = st.form_submit_button("Ingresar como Socio")
             
             if submit_socio:
-                # Usamos .strip() para limpiar espacios invisibles
                 if usuario.strip() != "" and codigo_invitacion.strip() in st.session_state['invite_codes']:
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'socio'
                     st.rerun() 
                 else:
-                    st.error("Código de invitación inválido o usuario vacío. Verifica que no haya espacios extra.")
+                    st.error("Código de invitación inválido o usuario vacío.")
                     
     with tab2:
         st.subheader("Panel de Administración")
@@ -101,36 +106,70 @@ def login_screen():
             submit_admin = st.form_submit_button("Ingresar como Admin")
             
             if submit_admin:
-                # Limpiamos espacios con .strip() y convertimos el usuario a minúsculas (.lower())
-                # para que "Admin", "admin ", o " ADMIN " funcionen igual.
                 if admin_user.strip().lower() == "admin" and admin_pass.strip() == "admin123":
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'admin'
                     st.rerun()
                 else:
-                    st.error("Credenciales incorrectas. Verifica que no tengas espacios en blanco al final.")
+                    st.error("Credenciales incorrectas.")
 
 # ==========================================
-# 4. DASHBOARD DE ADMINISTRADOR
+# 4. DASHBOARD DE ADMINISTRADOR (MEJORADO)
 # ==========================================
 def admin_dashboard():
-    st.title("Panel de Control Admin")
-    st.write("Gestión de códigos y cuentas MetaApi conectadas.")
+    st.title("⚙️ Centro de Control Admin")
+    st.write("Monitoreo general y gestión de cuentas del bot.")
     
-    if st.button("Generar Nuevo Código de Invitación"):
-        nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
-        st.session_state['invite_codes'].append(nuevo_codigo)
-        st.success(f"Código generado: {nuevo_codigo}")
-        st.code(f"http://localhost:8501/?invite={nuevo_codigo}")
-        
-    st.subheader("Códigos Activos")
-    st.write(st.session_state['invite_codes'])
+    # Métricas principales
+    col1, col2, col3 = st.columns(3)
+    col1.metric(label="Códigos Activos", value=len(st.session_state['invite_codes']))
+    col2.metric(label="Estado MetaApi", value="Desconectado", delta="Requiere Configuración", delta_color="off")
+    col3.metric(label="Socios Conectados", value="0", delta="Sistema en Pausa", delta_color="off")
     
     st.divider()
-    if st.button("Cerrar Sesión"):
-        st.session_state['logged_in'] = False
-        st.session_state['role'] = None
-        st.rerun()
+    
+    # Pestañas organizativas para el admin
+    tab_accesos, tab_api = st.tabs(["🔑 Gestión de Accesos", "🔌 Configuración MetaApi"])
+    
+    with tab_accesos:
+        st.subheader("Control de Invitaciones")
+        
+        # Dividimos en dos columnas: izquierda para generar, derecha para ver la lista
+        col_gen, col_lista = st.columns([1, 1.5])
+        
+        with col_gen:
+            st.info("Genera códigos únicos para invitar a nuevos socios al sistema.")
+            if st.button("Generar Nuevo Código", use_container_width=True):
+                nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
+                st.session_state['invite_codes'].append(nuevo_codigo)
+                st.success(f"¡Código creado!")
+                st.code(f"http://localhost:8501/?invite={nuevo_codigo}")
+                
+        with col_lista:
+            # Mostramos los códigos en una tabla bonita usando un DataFrame de Pandas
+            df_codigos = pd.DataFrame({
+                "Código de Invitación": st.session_state['invite_codes'],
+                "Estado": ["Activo"] * len(st.session_state['invite_codes'])
+            })
+            st.dataframe(df_codigos, use_container_width=True, hide_index=True)
+            
+    with tab_api:
+        st.subheader("Integración con MetaApi")
+        st.write("Ingresa los datos de tu cuenta de MetaApi para sincronizar el bot con MetaTrader 5.")
+        with st.form("form_metaapi"):
+            st.text_input("Account ID")
+            st.text_input("Access Token", type="password")
+            st.form_submit_button("Guardar Credenciales")
+            
+    st.divider()
+    
+    # Botón de cerrar sesión alineado a la derecha
+    col_vacia, col_salir = st.columns([3, 1])
+    with col_salir:
+        if st.button("Cerrar Sesión", use_container_width=True):
+            st.session_state['logged_in'] = False
+            st.session_state['role'] = None
+            st.rerun()
 
 # ==========================================
 # 5. DASHBOARD DEL SOCIO (EL BOT)
@@ -159,10 +198,13 @@ def socio_dashboard():
     st.info("El bot está analizando el mercado a través de MetaApi. Esperando el próximo Order Block para ejecutar entrada.")
     
     st.divider()
-    if st.button("Cerrar Sesión"):
-        st.session_state['logged_in'] = False
-        st.session_state['role'] = None
-        st.rerun()
+    
+    col_vacia, col_salir = st.columns([3, 1])
+    with col_salir:
+        if st.button("Cerrar Sesión", use_container_width=True):
+            st.session_state['logged_in'] = False
+            st.session_state['role'] = None
+            st.rerun()
 
 # ==========================================
 # 6. CONTROL DE RUTAS PRINCIPAL
