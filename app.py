@@ -85,6 +85,8 @@ if 'role' not in st.session_state:
     st.session_state['role'] = None
 if 'invite_codes' not in st.session_state:
     st.session_state['invite_codes'] = ['GOLD-2026', 'GOLD-DEMO']
+if 'last_generated_code' not in st.session_state:
+    st.session_state['last_generated_code'] = None
 
 # ==========================================
 # 3. BARRA SUPERIOR DE CONTROL (MODO OSCURO)
@@ -165,8 +167,13 @@ def admin_dashboard():
             if st.button("➕ Generar Nuevo Código", use_container_width=True):
                 nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
                 st.session_state['invite_codes'].append(nuevo_codigo)
-                st.success("¡Código creado!")
+                st.session_state['last_generated_code'] = nuevo_codigo
                 st.rerun()
+                
+            # Muestra el enlace para copiar directo si hay un código generado reciéntemente
+            if st.session_state['last_generated_code']:
+                st.success("Enlace listo para compartir:")
+                st.code(f"http://localhost:8501/?invite={st.session_state['last_generated_code']}")
                 
             st.markdown("---")
             st.markdown("#### Eliminar Código")
@@ -177,7 +184,9 @@ def admin_dashboard():
                 )
                 if st.button("🗑️ Eliminar Código Seleccionado", use_container_width=True):
                     st.session_state['invite_codes'].remove(codigo_eliminar)
-                    st.success(f"Código '{codigo_eliminar}' eliminado con éxito.")
+                    if st.session_state['last_generated_code'] == codigo_eliminar:
+                        st.session_state['last_generated_code'] = None
+                    st.success(f"Código '{codigo_eliminar}' eliminado.")
                     st.rerun()
             else:
                 st.info("No hay códigos de invitación para eliminar.")
