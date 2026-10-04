@@ -22,13 +22,17 @@ usuarios_db = {
     "invitado1": {"password": "gold123", "rol": "invitado"}
 }
 
-# Aplicar estilos CSS dinámicos según el modo seleccionado (Claro u Oscuro)
+# Aplicar estilos CSS dinámicos avanzados para corregir el color de los labels en modo claro/oscuro
 if st.session_state["modo_oscuro"]:
     st.markdown("""
         <style>
         .stApp {
             background-color: #0e1117;
             color: #ffffff;
+        }
+        /* Etiquetas de los inputs en modo oscuro */
+        .stTextInput label, .stSelectbox label, .stNumberInput label {
+            color: #ffffff !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -38,6 +42,10 @@ else:
         .stApp {
             background-color: #ffffff;
             color: #000000;
+        }
+        /* Etiquetas de los inputs en modo claro (color negro visible) */
+        .stTextInput label, .stSelectbox label, .stNumberInput label {
+            color: #000000 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -131,7 +139,7 @@ else:
             st.button("Conectar MT5")
             
         with col2:
-            st.markdown("### 🛡️️ Gestión de Riesgo")
+            st.markdown("### 🛡 Gestión de Riesgo")
             st.number_input("Lotaje", value=0.1)
             st.number_input("Stop Loss (Pips)", value=50)
             st.button("Guardar Riesgo")
