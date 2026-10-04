@@ -30,7 +30,6 @@ if st.session_state["modo_oscuro"]:
             background-color: #0e1117;
             color: #ffffff;
         }
-        /* Etiquetas de los inputs en modo oscuro */
         .stTextInput label, .stSelectbox label, .stNumberInput label {
             color: #ffffff !important;
         }
@@ -43,7 +42,6 @@ else:
             background-color: #ffffff;
             color: #000000;
         }
-        /* Etiquetas de los inputs en modo claro (color negro visible) */
         .stTextInput label, .stSelectbox label, .stNumberInput label {
             color: #000000 !important;
         }
@@ -80,7 +78,7 @@ if not st.session_state["autenticado"]:
             else:
                 st.error("Usuario o contraseña incorrectos.")
                 
-        st.info("Prueba:\n- `admin` / `admin123`\n- `invitado1` / `gold123`")
+        # (Se eliminó el bloque st.info de prueba que mostraba las credenciales)
 
 # --- PANTALLAS SEGÚN EL ROL (Una vez logueado) ---
 else:
