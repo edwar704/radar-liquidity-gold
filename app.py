@@ -14,36 +14,38 @@ if "usuario" not in st.session_state:
 if "rol" not in st.session_state:
     st.session_state["rol"] = ""
 
-# Base de datos simulada
 usuarios_db = {
     "admin": {"password": "admin123", "rol": "admin"},
     "invitado1": {"password": "gold123", "rol": "invitado"}
 }
 
-# --- PANTALLA DE LOGIN (Si no ha iniciado sesión) ---
+# --- PANTALLA DE LOGIN CENTRADA Y COMPACTA ---
 if not st.session_state["autenticado"]:
-    st.title("🤖 Radar Liquidity Gold Bot")
-    st.subheader("🔐 Iniciar Sesión")
+    # Creamos columnas para dejar espacios a los lados y centrar el cuadro
+    col_left, col_center, col_right = st.columns([1.2, 1, 1.2])
     
-    # Únicamente los dos recuadros solicitados
-    usuario_input = st.text_input("Usuario")
-    password_input = st.text_input("Contraseña", type="password")
-    
-    if st.button("Ingresar"):
-        if usuario_input in usuarios_db and usuarios_db[usuario_input]["password"] == password_input:
-            st.session_state["autenticado"] = True
-            st.session_state["usuario"] = usuario_input
-            st.session_state["rol"] = usuarios_db[usuario_input]["rol"]
-            st.success("¡Ingreso exitoso!")
-            st.rerun()
-        else:
-            st.error("Usuario o contraseña incorrectos.")
-            
-    st.info("Credenciales de prueba:\n- **Admin:** `admin` / `admin123`\n- **Invitado:** `invitado1` / `gold123`")
+    with col_center:
+        st.markdown("<h2 style='text-align: center;'>🤖 Radar Liquidity</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Iniciar Sesión</p>", unsafe_allow_html=True)
+        
+        usuario_input = st.text_input("Usuario")
+        password_input = st.text_input("Contraseña", type="password")
+        
+        st.write("") # Espaciado
+        if st.button("Ingresar", use_container_width=True):
+            if usuario_input in usuarios_db and usuarios_db[usuario_input]["password"] == password_input:
+                st.session_state["autenticado"] = True
+                st.session_state["usuario"] = usuario_input
+                st.session_state["rol"] = usuarios_db[usuario_input]["rol"]
+                st.success("¡Ingreso exitoso!")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+                
+        st.info("Prueba:\n- `admin` / `admin123`\n- `invitado1` / `gold123`")
 
 # --- PANTALLAS SEGÚN EL ROL (Una vez logueado) ---
 else:
-    # Botón para cerrar sesión arriba a la derecha o en un lugar visible
     col_title, col_logout = st.columns([4, 1])
     with col_title:
         st.title(f"🤖 Radar Liquidity Gold Bot - Panel de {st.session_state['rol'].capitalize()}")
@@ -62,7 +64,6 @@ else:
         tab_usr, tab_bot, tab_lic = st.tabs(["Gestión de Usuarios", "Parámetros del Bot", "Licencias"])
         
         with tab_usr:
-            st.write("Aquí puedes gestionar usuarios y accesos.")
             st.text_input("Nuevo Usuario")
             st.text_input("Contraseña Temporal", type="password")
             if st.button("Guardar Usuario"):
