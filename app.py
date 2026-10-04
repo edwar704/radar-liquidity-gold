@@ -7,14 +7,17 @@ import pandas as pd
 # ==========================================
 st.set_page_config(page_title="Radar Liquidity Gold Bot", page_icon="📈", layout="centered")
 
-# Almacén de códigos COMPARTIDO entre todos los usuarios y sesiones
+# Almacén de datos GLOBAL y COMPARTIDO entre todas las personas/dispositivos
 @st.cache_resource
-def obtener_codigos_compartidos():
-    return ['GOLD-2026', 'GOLD-DEMO']
+def obtener_sistema_global():
+    return {
+        'codigos': ['GOLD-2026', 'GOLD-DEMO'],  # Lista de códigos de invitación activos
+        'usuarios': {}                           # Diccionario de socios registrados {usuario: contraseña}
+    }
 
-codigos_globales = obtener_codigos_compartidos()
+sistema = obtener_sistema_global()
 
-# Inicializar estado del modo oscuro (privado de cada usuario)
+# Estado del modo oscuro (privado por usuario)
 if 'dark_mode' not in st.session_state:
     st.session_state['dark_mode'] = False
 
@@ -43,6 +46,7 @@ def aplicar_estilo(dark_mode=False):
         color: {text_color} !important; 
     }}
     
+    /* Botones: Degradado Azul Claro a Verde */
     div.stButton > button:first-child, div.stFormSubmitButton > button:first-child {{
         background: linear-gradient(135deg, #48cae4 0%, #2a9d8f 100%);
         color: white !important;
@@ -60,6 +64,7 @@ def aplicar_estilo(dark_mode=False):
         transform: translateY(-2px);
     }}
 
+    /* Cuadros de métricas */
     div[data-testid="metric-container"] {{
         background-color: {card_bg} !important;
         border-left: 5px solid #2a9d8f;
@@ -68,6 +73,7 @@ def aplicar_estilo(dark_mode=False):
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }}
 
+    /* Tablas */
     [data-testid="stTable"], [data-testid="stDataFrame"] {{
         background-color: {table_bg} !important;
         border-radius: 8px;
@@ -87,6 +93,8 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'role' not in st.session_state:
     st.session_state['role'] = None
+if 'current_user' not in st.session_state:
+    st.session_state['current_user'] = ""
 if 'last_generated_code' not in st.session_state:
     st.session_state['last_generated_code'] = None
 
@@ -101,36 +109,74 @@ with col_modo:
         st.rerun()
 
 # ==========================================
-# 4. LÓGICA DE LOGIN Y REGISTRO
+# 4. PANTALLA DE ACCESO Y REGISTRO
 # ==========================================
 def login_screen():
     st.title("Radar Liquidity Gold")
-    st.write("Bienvenido. Ingresa tus credenciales para acceder al sistema.")
+    st.write("Bienvenido. Ingresa a tu cuenta o regístrate con tu código de invitación.")
     
+    # Capturar código de invitación desde la URL si existe (?invite=GOLD-XXXX)
     try:
         codigo_url = st.query_params.get("invite", "")
     except AttributeError:
         codigo_url = ""
     
-    tab1, tab2 = st.tabs(["Acceso Socios", "Acceso Administrador"])
+    tab_socio, tab_admin = st.tabs(["Acceso Socios", "Acceso Administrador"])
     
-    with tab1:
-        st.subheader("Acceso para Socios")
-        with st.form("form_socio"):
-            usuario = st.text_input("Usuario")
-            codigo_invitacion = st.text_input("Código de Invitación", value=codigo_url)
-            submit_socio = st.form_submit_button("Ingresar como Socio")
-            
-            if submit_socio:
-                # Se valida contra la lista global compartida
-                if usuario.strip() != "" and codigo_invitacion.strip() in codigos_globales:
-                    st.session_state['logged_in'] = True
-                    st.session_state['role'] = 'socio'
-                    st.rerun() 
-                else:
-                    st.error("Código de invitación inválido o usuario vacío.")
+    with tab_socio:
+        # Pestañas internas para separar Inicio de Sesión y Registro
+        # Si el enlace trae un código de invitación, se abre directamente la pestaña de registro
+        indice_pestaña = 1 if codigo_url else 0
+        pestaña_login, pestaña_registro = st.tabs(["🔑 Iniciar Sesión", "📝 Registrarse con Invitación"])
+        
+        with pestaña_login:
+            with st.form("form_login_socio"):
+                usuario_ingreso = st.text_input("Nombre de Usuario")
+                clave_ingreso = st.text_input("Contraseña Personal", type="password")
+                submit_login = st.form_submit_button("Ingresar al Sistema")
+                
+                if submit_login:
+                    u_clean = usuario_ingreso.strip()
+                    p_clean = clave_ingreso.strip()
                     
-    with tab2:
+                    if u_clean in sistema['usuarios'] and sistema['usuarios'][u_clean] == p_clean:
+                        st.session_state['logged_in'] = True
+                        st.session_state['role'] = 'socio'
+                        st.session_state['current_user'] = u_clean
+                        st.rerun()
+                    else:
+                        st.error("Usuario o contraseña incorrectos. Si eres nuevo, regístrate primero.")
+
+        with pestaña_registro:
+            with st.form("form_registro_socio"):
+                st.info("Crea tus credenciales personales para acceder al bot.")
+                nuevo_usuario = st.text_input("Crea tu Nombre de Usuario")
+                nueva_clave = st.text_input("Crea tu Contraseña Personal", type="password")
+                codigo_invitacion = st.text_input("Código de Invitación", value=codigo_url)
+                submit_registro = st.form_submit_button("Crear Cuenta y Acceder")
+                
+                if submit_registro:
+                    u_reg = nuevo_usuario.strip()
+                    p_reg = nueva_clave.strip()
+                    c_reg = codigo_invitacion.strip()
+                    
+                    if not u_reg or not p_reg:
+                        st.error("Por favor completa tu usuario y contraseña.")
+                    elif c_reg not in sistema['codigos']:
+                        st.error("El código de invitación no es válido o ya fue utilizado.")
+                    elif u_reg in sistema['usuarios']:
+                        st.error("El nombre de usuario ya existe. Por favor elige otro.")
+                    else:
+                        # Registro exitoso del socio
+                        sistema['usuarios'][u_reg] = p_reg
+                        
+                        # Iniciar sesión automáticamente
+                        st.session_state['logged_in'] = True
+                        st.session_state['role'] = 'socio'
+                        st.session_state['current_user'] = u_reg
+                        st.rerun()
+                    
+    with tab_admin:
         st.subheader("Panel de Administración")
         with st.form("form_admin"):
             admin_user = st.text_input("Usuario Admin")
@@ -141,6 +187,7 @@ def login_screen():
                 if admin_user.strip().lower() == "admin" and admin_pass.strip() == "admin123":
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'admin'
+                    st.session_state['current_user'] = "Administrador"
                     st.rerun()
                 else:
                     st.error("Credenciales incorrectas.")
@@ -150,16 +197,16 @@ def login_screen():
 # ==========================================
 def admin_dashboard():
     st.title("⚙️ Centro de Control Admin")
-    st.write("Monitoreo general y gestión de cuentas del bot.")
+    st.write("Monitoreo general y gestión de accesos del bot.")
     
     col1, col2, col3 = st.columns(3)
-    col1.metric(label="Códigos Activos", value=len(codigos_globales))
-    col2.metric(label="Estado MetaApi", value="Desconectado", delta="Requiere Configuración", delta_color="off")
-    col3.metric(label="Socios Conectados", value="0", delta="Sistema en Pausa", delta_color="off")
+    col1.metric(label="Códigos Activos", value=len(sistema['codigos']))
+    col2.metric(label="Socios Registrados", value=len(sistema['usuarios']))
+    col3.metric(label="Estado MetaApi", value="Desconectado", delta="Requiere Configuración", delta_color="off")
     
     st.divider()
     
-    tab_accesos, tab_api = st.tabs(["🔑 Gestión de Accesos", "🔌 Configuración MetaApi"])
+    tab_accesos, tab_socios, tab_api = st.tabs(["🔑 Gestión de Accesos", "👥 Socios Registrados", "🔌 Configuración MetaApi"])
     
     with tab_accesos:
         st.subheader("Control de Invitaciones")
@@ -169,23 +216,23 @@ def admin_dashboard():
             st.markdown("#### Crear Código")
             if st.button("➕ Generar Nuevo Código", use_container_width=True):
                 nuevo_codigo = f"GOLD-{random.randint(1000, 9999)}"
-                codigos_globales.append(nuevo_codigo)
+                sistema['codigos'].append(nuevo_codigo)
                 st.session_state['last_generated_code'] = nuevo_codigo
                 st.rerun()
                 
             if st.session_state['last_generated_code']:
-                st.success("Enlace listo para compartir:")
+                st.success("Enlace listo para enviar al socio:")
                 st.code(f"https://radar-liquidity-gold-bot.streamlit.app/?invite={st.session_state['last_generated_code']}")
                 
             st.markdown("---")
             st.markdown("#### Eliminar Código")
-            if len(codigos_globales) > 0:
+            if len(sistema['codigos']) > 0:
                 codigo_eliminar = st.selectbox(
                     "Selecciona un código a eliminar:",
-                    options=codigos_globales
+                    options=sistema['codigos']
                 )
                 if st.button("🗑️ Eliminar Código Seleccionado", use_container_width=True):
-                    codigos_globales.remove(codigo_eliminar)
+                    sistema['codigos'].remove(codigo_eliminar)
                     if st.session_state['last_generated_code'] == codigo_eliminar:
                         st.session_state['last_generated_code'] = None
                     st.success(f"Código '{codigo_eliminar}' eliminado.")
@@ -195,15 +242,26 @@ def admin_dashboard():
                 
         with col_lista:
             st.markdown("#### Listado de Códigos Activos")
-            if len(codigos_globales) > 0:
+            if len(sistema['codigos']) > 0:
                 df_codigos = pd.DataFrame({
-                    "Código de Invitación": codigos_globales,
-                    "Estado": ["Activo"] * len(codigos_globales)
+                    "Código de Invitación": sistema['codigos'],
+                    "Estado": ["Disponible"] * len(sistema['codigos'])
                 })
                 st.dataframe(df_codigos, use_container_width=True, hide_index=True)
             else:
                 st.warning("No hay códigos activos en el sistema.")
-            
+
+    with tab_socios:
+        st.subheader("Socios con Cuenta Creada")
+        if len(sistema['usuarios']) > 0:
+            df_usuarios = pd.DataFrame({
+                "Usuario Registrado": list(sistema['usuarios'].keys()),
+                "Acceso": ["Activo"] * len(sistema['usuarios'])
+            })
+            st.dataframe(df_usuarios, use_container_width=True, hide_index=True)
+        else:
+            st.info("Aún no hay ningún socio registrado en el sistema.")
+
     with tab_api:
         st.subheader("Integración con MetaApi")
         st.write("Ingresa los datos de tu cuenta de MetaApi para sincronizar el bot con MetaTrader 5.")
@@ -219,6 +277,7 @@ def admin_dashboard():
         if st.button("Cerrar Sesión", use_container_width=True):
             st.session_state['logged_in'] = False
             st.session_state['role'] = None
+            st.session_state['current_user'] = ""
             st.rerun()
 
 # ==========================================
@@ -226,7 +285,7 @@ def admin_dashboard():
 # ==========================================
 def socio_dashboard():
     st.title("Radar Liquidity Gold Bot")
-    st.write("Monitoreo institucional XAU/USD en tiempo real.")
+    st.write(f"Bienvenido **{st.session_state['current_user']}**. Monitoreo institucional XAU/USD en tiempo real.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -254,6 +313,7 @@ def socio_dashboard():
         if st.button("Cerrar Sesión", use_container_width=True):
             st.session_state['logged_in'] = False
             st.session_state['role'] = None
+            st.session_state['current_user'] = ""
             st.rerun()
 
 # ==========================================
