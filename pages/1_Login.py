@@ -19,7 +19,7 @@ if st.session_state.get("autenticado", False):
         st.session_state["rol"] = ""
         st.rerun()
 else:
-    # Solo los dos recuadros solicitados
+    # Únicamente los dos recuadros solicitados
     usuario_input = st.text_input("Usuario")
     password_input = st.text_input("Contraseña", type="password")
     
