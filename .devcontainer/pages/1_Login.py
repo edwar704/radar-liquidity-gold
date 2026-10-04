@@ -1,0 +1,45 @@
+import streamlit as st
+
+st.set_page_config(page_title="Login - Radar Liquidity", page_icon="🔐")
+
+st.title("🔐 Inicio de Sesión / Recuperación")
+
+# Pestañas para Login y Recuperación
+tab1, tab2 = st.tabs(["Iniciar Sesión", "Recuperar Clave / Usuario"])
+
+with tab1:
+    st.subheader("Acceso al Sistema")
+    
+    if st.session_state.get("autenticado", False):
+        st.success(f"Ya has iniciado sesión como {st.session_state['usuario']}.")
+        if st.button("Cerrar Sesión"):
+            st.session_state["autenticado"] = False
+            st.session_state["usuario"] = ""
+            st.session_state["rol"] = ""
+            st.rerun()
+    else:
+        usuario_input = st.text_input("Usuario")
+        password_input = st.text_input("Contraseña", type="password")
+        
+        if st.button("Ingresar"):
+            db = st.session_state.get("usuarios_db", {
+                "admin": {"password": "admin123", "rol": "admin"},
+                "invitado1": {"password": "gold123", "rol": "invitado"}
+            })
+            if usuario_input in db and db[usuario_input]["password"] == password_input:
+                st.session_state["autenticado"] = True
+                st.session_state["usuario"] = usuario_input
+                st.session_state["rol"] = db[usuario_input]["rol"]
+                st.success("¡Inicio de sesión exitoso! Redirigiendo...")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos.")
+
+with tab2:
+    st.subheader("Recuperación de Credenciales")
+    email_recu = st.text_input("Correo electrónico asociado o Usuario")
+    if st.button("Enviar instrucciones"):
+        if email_recu:
+            st.info("Si el usuario existe, se han enviado las instrucciones de recuperación a su correo.")
+        else:
+            st.warning("Por favor ingrese un dato válido.")
